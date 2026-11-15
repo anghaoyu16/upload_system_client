@@ -1607,7 +1607,7 @@
         }
         html += '<button class="upload-btn" data-action="download-zip" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#9b59b6;"><i class="fa-solid fa-file-zipper"></i> 下载压缩包</button>';
         if (depth >= 2 && !node.readonly && localStorage.getItem('showCopyHomework') === 'true') {
-          html += '<button class="upload-btn" data-action="copy-homework" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-hand-sparkles"></i> 帮我交作业</button>';
+          html += '<button class="upload-btn" data-action="copy-homework" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-wand-magic-sparkles"></i> 帮我交作业</button>';
         }
         if (!isShallow && !node.readonly) {
           html += '<button class="upload-btn" data-action="upload" data-path="' + escapeHtml(node.path || node.name || '') + '"><i class="fa-solid fa-upload"></i> 上传</button>';
@@ -1616,7 +1616,7 @@
         }
       } else {
         if (depth >= 2 && !node.readonly) {
-          html += '<button class="upload-btn" data-action="copy-homework" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-hand-sparkles"></i> 帮我交作业</button>';
+          html += '<button class="upload-btn" data-action="copy-homework" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-wand-magic-sparkles"></i> 帮我交作业</button>';
         }
         if (node.readonly || isShallow) {
           html += '<button class="upload-btn disabled" data-path="' + escapeHtml(node.path || node.name || '') + '"><i class="fa-solid fa-upload"></i> 上传</button>';

@@ -92,6 +92,7 @@
         <button class="sidebar-btn" data-page="python" title="Python"><i class="fa-brands fa-python"></i></button>
         <button class="sidebar-btn" data-page="mmd" title="MMD模型"><i class="fa-solid fa-cube"></i></button>
         <button class="sidebar-btn" style="display:none" data-page="log" title="日志输出"><i class="fa-solid fa-terminal"></i></button>
+        <button class="sidebar-btn" data-page="desktop-clone" title="桌面分身"><i class="fa-solid fa-clone"></i></button>
         <button class="sidebar-btn" data-page="settings" title="设置"><i class="fa-solid fa-gear"></i></button>
       </div>
       <div class="sidebar-spacer"></div>
@@ -988,6 +989,27 @@
       </div>
 
       <div class="page" id="page-mmd"></div>
+
+      <div class="page" id="page-desktop-clone">
+        <div class="rdp-container">
+          <div class="rdp-toolbar">
+            <div class="rdp-status">
+              <span class="rdp-status-dot status-error" id="rdp-status-dot"></span>
+              <span class="rdp-status-text" id="rdp-status-text">服务离线</span>
+            </div>
+            <div class="rdp-toolbar-actions">
+              <button class="btn btn-outline btn-sm" id="rdp-security-btn" title="打开安全选项"><i class="fa-solid fa-shield-halved"></i> 打开安全选项</button>
+              <button class="btn btn-outline btn-sm" id="rdp-disconnect-btn" title="断开连接"><i class="fa-solid fa-link-slash"></i> 断开连接</button>
+            </div>
+          </div>
+          <div class="rdp-screen" id="rdp-screen">
+            <div class="rdp-placeholder" id="rdp-placeholder">
+              <i class="fa-solid fa-display rdp-placeholder-icon"></i>
+              <div class="rdp-placeholder-text">未连接到远程桌面</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="page" id="page-log">
         <div class="card" style="flex:1;display:flex;flex-direction:column;">

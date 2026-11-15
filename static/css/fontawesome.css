@@ -154,3 +154,7 @@
 .fa-microphone:before { content: "\f130"; }
 .fa-microphone-slash:before { content: "\f539"; }
 .fa-arrow-right-arrow-left:before { content: "\f0ec"; }
+
+/* 桌面分身 */
+.fa-shield-halved:before { content: "\f3ed"; }
+.fa-link-slash:before { content: "\f127"; }
