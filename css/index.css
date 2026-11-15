@@ -1730,96 +1730,96 @@ body.with-bg .xxt-placeholder {
 .xxt-open-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .xxt-open-btn:active { transform: translateY(0); }
 
-/* ===== 浏览器标签页底部镂空圆角修正（仅浏览器页面） ===== */
-.browser-container {
-  --browser-tab-bg: var(--card-bg, var(--bg));
-}
-
-.browser-tabbar,
-.browser-tabs {
-  overflow: visible !important;
-}
-
-.browser-tabs {
+/* 【浏览器标签栏】 */
+.browser-tabbar {
+  background: var(--tabbar-bg);
+  display: flex;
   align-items: flex-end;
-}
-
-.browser-tabs > *:not(.browser-new-tab) {
+  padding: 6px 8px 0 8px;
+  min-height: 38px;
+  overflow: visible;
   position: relative;
-  z-index: 2;
-  background: var(--browser-tab-bg) !important;
-  border-radius: 10px 10px 0 0 !important;
-  margin-bottom: -1px !important;
+  z-index: 10;
 }
 
-.browser-tabs > *:not(.browser-new-tab)::before,
-.browser-tabs > *:not(.browser-new-tab)::after {
+.browser-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  margin: 0;
+  scrollbar-width: none;
+}
+.browser-tabs::-webkit-scrollbar { display: none; }
+
+.browser-tabs .browser-tab {
+  height: 32px;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 80px;
+  max-width: 200px;
+  z-index: 1;
+  border: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.browser-tabs .browser-tab:hover:not(.active) {
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.browser-tabs .browser-tab.active {
+  background: var(--tab-active-bg);
+  color: var(--theme);
+  font-weight: 500;
+  z-index: 2;
+  margin-bottom: -1px; /* 压住下方的1px空隙 */
+}
+
+/* 左侧向外倒角 */
+.browser-tabs .browser-tab.active::before {
   content: "";
   position: absolute;
-  bottom: -1px;
+  bottom: 0;
+  left: -10px; /* 关键：溢出到标签外部 */
   width: 10px;
   height: 10px;
   pointer-events: none;
-  background: var(--browser-tab-bg);
+  background: radial-gradient(circle at 0 0, transparent 10px, var(--tab-active-bg) 10px);
 }
 
-.browser-tabs > *:not(.browser-new-tab)::before {
-  left: -10px;
-  background: radial-gradient(circle at 0 0, transparent 10px, var(--browser-tab-bg) 10px);
+/* 右侧向外倒角 */
+.browser-tabs .browser-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: -10px; /* 关键：溢出到标签外部 */
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-active-bg) 10px);
 }
 
-.browser-tabs > *:not(.browser-new-tab)::after {
-  right: -10px;
-  background: radial-gradient(circle at 100% 0, transparent 10px, var(--browser-tab-bg) 10px);
-}
-
-.browser-tabbar + .browser-addressbar,
-.browser-tabs + .browser-addressbar {
-  background: var(--browser-tab-bg) !important;
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
+/* 地址栏无缝衔接 */
+.browser-addressbar {
+  background: var(--tab-active-bg);
+  border-top: none;
   position: relative;
   z-index: 1;
 }
 
-.browser-tabbar {
-  display: flex;
-  align-items: center;
-  background: var(--glass-bg, var(--card-bg-secondary, var(--bg-secondary)));
-  backdrop-filter: var(--glass-blur, none);
-  -webkit-backdrop-filter: var(--glass-blur, none);
-  padding: 0;
-  gap: 0;
-  min-height: 36px;
-  flex-shrink: 0;
-}
-.browser-tabs {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-.browser-tabs::-webkit-scrollbar { height: 0; }
-.browser-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: background var(--transition);
-  flex: 1 1 0;
-  min-width: 80px;
-  max-width: 200px;
-  position: relative;
-}
-.browser-tab:hover { background: var(--hover-bg); }
 .browser-tab-icon,
 .browser-tab-icon-default {
   width: 14px;
@@ -1837,28 +1837,8 @@ body.with-bg .xxt-placeholder {
   min-width: 0;
 }
 .browser-tab.active {
-  background: #ffffff;
   color: var(--theme);
   font-weight: 500;
-  border-radius: 8px 8px 0 0;
-  align-self: stretch;
-}
-.browser-tab.active::before,
-.browser-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: #ffffff;
-}
-.browser-tab.active::before {
-  left: -8px;
-  border-bottom-right-radius: 8px;
-}
-.browser-tab.active::after {
-  right: -8px;
-  border-bottom-left-radius: 8px;
 }
 .browser-tab-audio {
   position: absolute;
@@ -1918,7 +1898,7 @@ body.with-bg .xxt-placeholder {
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  background: #ffffff;
+  background: var(--tab-active-bg);
   flex-shrink: 0;
 }
 .browser-nav-btn {
@@ -1944,7 +1924,7 @@ body.with-bg .xxt-placeholder {
   font-size: 12px;
   font-family: inherit;
   outline: none;
-  background: var(--card-bg, var(--bg));
+  background: var(--tab-active-bg);
   color: var(--text);
   transition: border-color var(--transition);
 }
@@ -2133,69 +2113,96 @@ body.with-bg .xxt-placeholder {
   overflow: hidden;
 }
 
+/* ========================================================= */
+/* ===== 学习通标签栏：同等修复 ===== */
+/* ========================================================= */
 .xxt-toolbar {
+  background: var(--tabbar-bg);
   display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0;
-  background: var(--glass-bg, rgba(255,255,255,0.78));
-  backdrop-filter: var(--glass-blur, blur(12px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(12px));
-  flex-shrink: 0;
-  min-height: 36px;
+  align-items: flex-end;
+  padding: 6px 8px 0 8px;
+  min-height: 38px;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
 }
 
 .xxt-tabs {
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: flex-end;
+  gap: 2px;
   overflow-x: auto;
   overflow-y: hidden;
   flex: 1;
-  min-width: 0;
   margin-left: 0;
+  padding: 0;
+  scrollbar-width: none;
 }
+.xxt-tabs::-webkit-scrollbar { display: none; }
 
-.xxt-tab {
+.xxt-tabs .xxt-tab {
+  height: 32px;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 12px;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px 4px 12px;
-  border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: background var(--transition);
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
-  position: relative;
+  z-index: 1;
+  border: none;
+  transition: background 0.2s, color 0.2s;
 }
-.xxt-tab:hover { background: var(--hover-bg); color: var(--text); }
-.xxt-tab.active {
-  background: #ffffff;
+
+.xxt-tabs .xxt-tab:hover:not(.active) {
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.xxt-tabs .xxt-tab.active {
+  background: var(--tab-active-bg);
   color: var(--theme);
   font-weight: 600;
-  border-radius: 8px 8px 0 0;
-  align-self: stretch;
+  z-index: 2;
+  margin-bottom: -1px;
 }
-.xxt-tab.active::before,
-.xxt-tab.active::after {
-  content: '';
+
+/* 学习通左侧向外倒角 */
+.xxt-tabs .xxt-tab.active::before {
+  content: "";
   position: absolute;
   bottom: 0;
-  width: 8px;
-  height: 8px;
-  background: #ffffff;
+  left: -10px;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: radial-gradient(circle at 0 0, transparent 10px, var(--tab-active-bg) 10px);
 }
-.xxt-tab.active::before {
-  left: -8px;
-  border-bottom-right-radius: 8px;
+
+/* 学习通右侧向外倒角 */
+.xxt-tabs .xxt-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: -10px;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-active-bg) 10px);
 }
-.xxt-tab.active::after {
-  right: -8px;
-  border-bottom-left-radius: 8px;
+
+/* 学习通下方页面无缝衔接 */
+.xxt-toolbar + .browser-content,
+.xxt-toolbar ~ .browser-content {
+  background: var(--tab-active-bg);
+  border-top: none;
+  position: relative;
+  z-index: 1;
 }
 .xxt-tab .tab-title {
   overflow: hidden;
@@ -2281,6 +2288,8 @@ body.with-bg .xxt-placeholder {
 .browser-nav-btn:disabled { opacity: 0.3; cursor: default; }
 
 .browser-container {
+  --tabbar-bg: var(--bg-secondary);
+  --tab-active-bg: var(--bg);
   display: flex;
   flex-direction: column;
   flex: 1;
