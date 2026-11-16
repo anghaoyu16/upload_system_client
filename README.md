@@ -7,6 +7,10 @@
 ### 首页
 <img src="markdown_img/home.png" alt="默认首页" width="600">
 
+### 桌面分身
+<img src="markdown_img/a7.png" alt="桌面分身" width="600">
+<img src="markdown_img/a8.png" alt="桌面分身1" width="600">
+
 ### 个性化
 <img src="markdown_img/a1.png" alt="个性化" width="600">
 
@@ -28,6 +32,7 @@
 
 ## 功能特性
 
+- **桌面分身**：基于系统原生 RDP 的独立子窗口，`F7` / `Alt+Enter` 全局快捷键全屏，支持自定义标题栏、边缘缩放、下拉置顶、断连无信号提示与一键重连
 - **多后端自动切换**：按 `backends` 列表自动探测可用服务器，优先局域网，失败后回退公网
 - **作业 / 素材树管理**：上传、下载、重命名、移动、权限设置、压缩包下载、帮我交作业
 - **学习通集成**：独立登录窗口、免登浏览、环信聊天、好友、窗口抖动、语音通话(实验性)
@@ -59,6 +64,9 @@
 
 直接下载Releases内的APP即安装可离线使用
 
+注意:桌面分身的登录密码不是你的PIN，是你登录的微软账户的密码
+如果你没有登录微软账户，登录密码就是你的设备的登录密码
+每次连接都需要通过 **Windows安全中心** 进行连接
 
 # 方案二:配置服务器，使用网络上传作业与使用更多功能
 
@@ -208,6 +216,9 @@ npm start                          # 启动 Electron 窗口
 ├── index.html               # 主界面
 ├── call-window.html         # 来电窗口
 ├── dev-panel.html           # 开发者控制面板
+├── rdp-child.ps1            # 桌面分身窗口（WinForms + MsRdpClient10）
+├── rdp-child.cmd            # 桌面分身指令通道（主进程 ↔ PowerShell 通信）
+├── icon_rdp.ico             # 桌面分身窗口图标
 ├── js/
 │   ├── app.js               # 前端核心逻辑（登录、树、上传下载、学习通、浏览器、Python...）
 │   ├── mmd.js               # MMD 模型加载/预览/配置

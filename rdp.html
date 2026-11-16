@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>桌面分身</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+  #screen { display: block; max-width: 100vw; max-height: 100vh; margin: 0 auto; }
+  #status { position: fixed; left: 8px; top: 8px; color: #fff; font: 12px monospace; background: rgba(0,0,0,.65); padding: 4px 8px; border-radius: 4px; z-index: 9; }
+</style>
+</head>
+<body>
+<canvas id="screen"></canvas>
+<div id="status">未连接（在 DevTools 控制台执行 startRdp({ userName, password })）</div>
+<script>
+const canvas = document.getElementById('screen');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+let rw = 0, rh = 0;
+
+const api = window.electronAPI;
+
+// 全局入口：先定义，确保控制台可直接调用 startRdp / stopRdp
+window.startRdp = (cfg) => {
+  if (!api) { statusEl.textContent = 'electronAPI 不可用：请从应用内入口打开本页'; return Promise.reject(new Error('electronAPI 不可用')); }
+  return api.rdpStart(cfg || {});
+};
+window.stopRdp = () => { if (api) api.rdpStop(); };
+function sendInput(ev) { if (api) api.rdpSendInput(ev); }
+
+if (api) api.onRdpFrame((f) => {
+  if (!f || !f.data) return;
+  if (f.width !== rw || f.height !== rh) {
+    rw = f.width; rh = f.height;
+    canvas.width = rw; canvas.height = rh;
+  }
+  const src = new Uint8Array(f.data);
+  const img = ctx.createImageData(f.width, f.height);
+  const dst = img.data;
+  if (f.bitsPerPixel === 32) {
+    // BGRA -> RGBA（RDP 原始像素为 BGR 序）
+    for (let i = 0, j = 0; i < src.length; i += 4, j += 4) {
+      dst[j] = src[i + 2]; dst[j + 1] = src[i + 1]; dst[j + 2] = src[i]; dst[j + 3] = src[i + 3];
+    }
+  } else {
+    dst.set(src); // 其他位深先原样拷贝，跑通 32bpp 再说
+  }
+  ctx.putImageData(img, f.left, f.top);
+});
+
+if (api) api.onRdpStatus((s) => { statusEl.textContent = JSON.stringify(s); });
+else statusEl.textContent = 'electronAPI 不可用：请从应用内入口打开本页';
+
+// 鼠标输入（按显示缩放比例映射回远程像素坐标）
+function toRdp(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: Math.round((e.clientX - r.left) * rw / r.width),
+    y: Math.round((e.clientY - r.top) * rh / r.height)
+  };
+}
+canvas.addEventListener('mousedown', (e) => { const p = toRdp(e); sendInput({ type: 'pointer', x: p.x, y: p.y, button: e.button === 2 ? 2 : 1, isPressed: true }); });
+canvas.addEventListener('mouseup', (e) => { const p = toRdp(e); sendInput({ type: 'pointer', x: p.x, y: p.y, button: e.button === 2 ? 2 : 1, isPressed: false }); });
+canvas.addEventListener('mousemove', (e) => { const p = toRdp(e); sendInput({ type: 'pointer', x: p.x, y: p.y, button: 0, isPressed: false }); });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// 键盘（仅可打印字符；特殊键/组合键需后续用 scancode 映射）
+window.addEventListener('keydown', (e) => { if (e.key.length === 1) sendInput({ type: 'key', code: e.key.charCodeAt(0), isPressed: true }); });
+window.addEventListener('keyup', (e) => { if (e.key.length === 1) sendInput({ type: 'key', code: e.key.charCodeAt(0), isPressed: false }); });
+</script>
+</body>
+</html>

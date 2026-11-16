@@ -125,6 +125,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onOpenNewTab: (callback) => ipcRenderer.on('open-new-tab', (event, url) => callback(url)),
 
     openXxtWindow: () => ipcRenderer.invoke('open-xxt-window'),
+
+    // 桌面分身（独立原生 RDP 窗口 + 后台服务）
+    startChildSession: () => ipcRenderer.invoke('child-session-start'),
+    getRdpStatus: () => ipcRenderer.invoke('child-session-status'),
+    showChildSession: () => ipcRenderer.send('child-session-show'),
+    hideChildSession: () => ipcRenderer.send('child-session-hide'),
+    logoffChildSession: () => ipcRenderer.send('child-session-logoff'),
+    closeChildSession: () => ipcRenderer.send('child-session-close'),
+    onRdpStatusChanged: (callback) => ipcRenderer.on('rdp-status-changed', (event, running) => callback(running)),
+
     xxtCheckCookies: () => ipcRenderer.invoke('xxt-check-cookies'),
     xxtLogout: () => ipcRenderer.invoke('xxt-logout'),
     onXxtLoginState: (callback) => ipcRenderer.on('xxt-login-state', (event, state) => callback(state)),

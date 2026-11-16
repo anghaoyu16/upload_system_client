@@ -9,12 +9,13 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 let mainWindow = null;
 let progressWindow = null;
 let xxtLoginWindow = null;
 let callWindow = null;   // 来电窗口
+let childSession = null;   // 桌面分身子会话进程
 let xxtSession = null;  // 学习通专用 session
 const xxtWebContentsIds = new Set();  // 追踪学习通 webview 的 webContents ID
 let currentDownloadReq = null;
@@ -245,6 +246,55 @@ function loadBackgroundMetadata() {
 ipcMain.handle('save-font-file', async (event, fileData, filename) => {
     return saveFontFileFromData(fileData, filename);
 });
+
+// ===== 桌面分身（独立原生 RDP 前台窗口 + 后台常驻服务 + 指令文件控制）=====
+function notifyRdpStatus(running) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('rdp-status-changed', running);
+    }
+}
+function getRdpDir() {
+    return app.isPackaged ? process.resourcesPath : __dirname;
+}
+function sendChildSessionCmd(cmd) {
+    try { fs.writeFileSync(path.join(getRdpDir(), 'rdp-child.cmd'), cmd, 'utf-8'); }
+    catch (e) { console.error('[ChildSession] 写入指令失败:', e); }
+}
+function startChildSession() {
+    if (childSession && !childSession.killed) return;
+    const psPath = path.join(getRdpDir(), 'rdp-child.ps1');
+    if (!fs.existsSync(psPath)) return;
+
+    // 自动读取主屏幕分辨率
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.size;
+
+    try {
+        sendChildSessionCmd('');
+        const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', psPath,
+            '-Width', String(width), '-Height', String(height)];
+        childSession = spawn('powershell.exe', args);
+        childSession.stdout.on('data', (d) => {
+            const s = iconv.decode(d, 'gbk').trim();
+            if (s) console.log('[ChildSession]', s);
+        });
+        childSession.stderr.on('data', (d) => console.error('[ChildSession][err]', iconv.decode(d, 'gbk').trim()));
+        childSession.on('error', (err) => console.error('[ChildSession] 启动失败:', err));
+        childSession.on('exit', (code) => {
+            console.log('[ChildSession] 服务已退出, code:', code);
+            childSession = null;
+            notifyRdpStatus(false);
+        });
+        notifyRdpStatus(true);
+    } catch (e) { console.error('[ChildSession] spawn 异常:', e); }
+}
+ipcMain.handle('child-session-start', () => { startChildSession(); return true; });
+ipcMain.handle('child-session-status', () => !!(childSession && !childSession.killed));
+ipcMain.on('child-session-show', () => sendChildSessionCmd('show'));
+ipcMain.on('child-session-hide', () => sendChildSessionCmd('hide'));
+ipcMain.on('child-session-logoff', () => sendChildSessionCmd('logoff'));
+ipcMain.on('child-session-close', () => sendChildSessionCmd('close'));
+
 ipcMain.handle('get-font-info', () => {
     const meta = loadFontMetadata();
     return meta || { filePath: null, family: null };

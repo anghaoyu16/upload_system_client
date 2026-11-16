@@ -1,6 +1,6 @@
 {
   "name": "upload-system-client",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "作业上传系统客户端",
   "main": "main.js",
   "scripts": {
@@ -29,6 +29,11 @@
       "!markdown_img/**/*",
       "!app_github_old",
       "!app_github_old/**/*"
+    ],
+    "extraResources": [
+      { "from": "rdp-child.ps1", "to": "rdp-child.ps1" },
+      { "from": "rdp-child.cmd", "to": "rdp-child.cmd" },
+      { "from": "icon_rdp.ico", "to": "icon_rdp.ico" }
     ],
     "win": {
       "target": "nsis",

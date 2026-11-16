@@ -56,8 +56,8 @@
   let fetchAbortController = new AbortController();
   let autoStart = localStorage.getItem('autoStart') === 'true';
   let appTitle = localStorage.getItem('appTitle') || '作业上传系统';
-  let appVersion = 'v1.4.1';
-  let appbetaVersion = '1.4.1';
+  let appVersion = 'v1.4.2';
+  let appbetaVersion = '1.4.2';
   let betaUpdateEnabled = localStorage.getItem('betaUpdateEnabled') === 'true';
   let downloadHistory = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
   let activeDownloadCount = 0;
@@ -832,6 +832,78 @@
     }
     if (page === 'python') { initPythonPage(); }
     if (page === 'mmd') { if (window.MMDViewer) window.MMDViewer.init($('page-mmd')); }
+  }
+
+  // ====== 桌面分身控制面板 ======
+  function rdpStatusTitle() { return $('rdp-status-title'); }
+  function rdpStatusDesc() { return $('rdp-status-desc'); }
+  function rdpControls() { return $('rdp-controls'); }
+
+  function updateRdpUI(isRunning) {
+    var title = rdpStatusTitle();
+    var desc = rdpStatusDesc();
+    var ctrls = rdpControls();
+    if (!title || !desc || !ctrls) return;
+    // 同步更新工具栏状态文字与圆点
+    var barText = $('rdp-status-text');
+    var barDot = $('rdp-status-dot');
+    var titleDot = $('rdp-status-title-dot');
+    if (isRunning) {
+      title.textContent = '服务正在运行';
+      desc.textContent = '远程桌面在后台独立运行，可随时操作窗口';
+      if (barText) barText.textContent = '服务在线';
+      if (barDot) { barDot.className = 'rdp-status-dot status-running'; }
+      if (titleDot) { titleDot.style.background = '#22c55e'; }
+      ctrls.innerHTML =
+        '<button class="btn btn-primary" id="btn-rdp-show"><i class="fa-solid fa-window-maximize"></i> 打开桌面分身窗口</button>' +
+        '<button class="btn btn-outline" id="btn-rdp-reconnect"><i class="fa-solid fa-rotate-right"></i> 重新连接</button>' +
+        '<button class="btn btn-outline" id="btn-rdp-hide"><i class="fa-solid fa-eye-slash"></i> 隐藏窗口</button>' +
+        '<button class="btn btn-outline" id="btn-rdp-restart"><i class="fa-solid fa-rotate"></i> 重启服务</button>' +
+        '<button class="btn btn-danger" id="btn-rdp-logoff"><i class="fa-solid fa-right-from-bracket"></i> 注销并关闭</button>';
+    } else {
+      title.textContent = '服务未启动';
+      desc.textContent = '启动后将拉起系统原生 RDP 窗口';
+      if (barText) barText.textContent = '服务离线';
+      if (barDot) { barDot.className = 'rdp-status-dot status-error'; }
+      if (titleDot) { titleDot.style.background = '#f59e0b'; }
+      ctrls.innerHTML =
+        '<button class="btn btn-primary" id="btn-rdp-start"><i class="fa-solid fa-play"></i> 连接服务</button>';
+    }
+    bindRdpEvents();
+  }
+
+  function bindRdpEvents() {
+    var bind = function (id, fn) {
+      var el = document.getElementById(id);
+      if (el) el.onclick = fn;
+    };
+    bind('btn-rdp-start', function () {
+      var t = rdpStatusTitle(); if (t) t.textContent = '正在连接...';
+      var d = rdpStatusDesc(); if (d) d.textContent = '请稍候';
+      if (API && API.startChildSession) API.startChildSession();
+    });
+    bind('btn-rdp-show', function () { if (API && API.showChildSession) API.showChildSession(); });
+    bind('btn-rdp-reconnect', function () { if (API && API.restartChildSession) API.restartChildSession(); });
+    bind('btn-rdp-hide', function () { if (API && API.hideChildSession) API.hideChildSession(); });
+    bind('btn-rdp-logoff', function () {
+      if (API && API.logoffChildSession) API.logoffChildSession();
+      updateRdpUI(false);
+    });
+    bind('btn-rdp-restart', function () {
+      if (API && API.closeChildSession) API.closeChildSession();
+      setTimeout(function () { if (API && API.startChildSession) API.startChildSession(); }, 1000);
+    });
+  }
+
+  function initRdpPanel() {
+    if (API && API.onRdpStatusChanged) {
+      API.onRdpStatusChanged(function (running) { updateRdpUI(running); });
+    }
+    // 主动查询一次当前状态，校正切换页面/刷新后的事件遗漏
+    if (API && API.getRdpStatus) {
+      API.getRdpStatus().then(function (running) { updateRdpUI(!!running); });
+    }
+    bindRdpEvents();
   }
 
   function updateNavButtons() {
@@ -3839,6 +3911,9 @@
     qsa('.sidebar-btn').forEach(btn => {
       btn.addEventListener('click', () => navigateTo(btn.dataset.page));
     });
+
+    // 桌面分身控制面板：监听服务状态并初始化按钮（不再使用旧截图帧渲染）
+    initRdpPanel();
 
     // 主动拉取背景信息作为兜底，防止 did-finish-load 事件竞态丢失
     if (API && API.getBackgroundInfo) {

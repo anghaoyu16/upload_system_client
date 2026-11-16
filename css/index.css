@@ -659,8 +659,8 @@ body.splash-active #titlebar #update-reload-btn {
 .btn-danger:hover { filter: brightness(1.08); }
 .btn-outline {
   background: transparent;
-  border: 1.5px solid var(--border);
-  color: var(--text);
+  border: 1.5px solid #ffffff;
+  color: #ffffff;
 }
 .btn-outline:hover { border-color: var(--theme); color: var(--theme); }
 .btn-sm { padding: 4px 12px; font-size: 11px; border-radius: 12px; }
@@ -2141,7 +2141,7 @@ body.with-bg .xxt-placeholder {
 .xxt-tabs::-webkit-scrollbar { display: none; }
 
 .xxt-tabs .xxt-tab {
-  height: 32px;
+  height: 40px;
   border-radius: 10px 10px 0 0;
   background: transparent;
   color: var(--text-secondary);
@@ -2343,8 +2343,8 @@ body.with-bg .rdp-container {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  background: #2a2a2a;
-  border-bottom: 1px solid #1a1a1a;
+  background: #1f1f1f;
+  border-bottom: 1px solid #141414;
   flex-shrink: 0;
   min-height: 36px;
 }
@@ -2370,8 +2370,8 @@ body.with-bg .rdp-container {
   gap: 8px;
 }
 .rdp-toolbar-actions .btn-outline {
-  border-color: #444;
-  color: #e5e5e5;
+  border-color: var(--border);
+  color: #ffffff;
 }
 .rdp-toolbar-actions .btn-outline:hover {
   border-color: var(--theme);
@@ -2381,7 +2381,7 @@ body.with-bg .rdp-container {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: #2a2a2a;
 }
 .rdp-placeholder {
   position: absolute;

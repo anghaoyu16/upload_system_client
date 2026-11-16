@@ -1000,12 +1000,22 @@
             <div class="rdp-toolbar-actions">
               <button class="btn btn-outline btn-sm" id="rdp-security-btn" title="打开安全选项"><i class="fa-solid fa-shield-halved"></i> 打开安全选项</button>
               <button class="btn btn-outline btn-sm" id="rdp-disconnect-btn" title="断开连接"><i class="fa-solid fa-link-slash"></i> 断开连接</button>
+              <button class="btn btn-outline btn-sm" id="rdp-logoff-btn" title="注销"><i class="fa-solid fa-right-from-bracket"></i> 注销</button>
+              <button class="btn btn-primary btn-sm" id="rdp-connect-btn" title="启动"><i class="fa-solid fa-play"></i> 启动</button>
             </div>
           </div>
-          <div class="rdp-screen" id="rdp-screen">
-            <div class="rdp-placeholder" id="rdp-placeholder">
-              <i class="fa-solid fa-display rdp-placeholder-icon"></i>
-              <div class="rdp-placeholder-text">未连接到远程桌面</div>
+          <div class="rdp-screen" id="rdp-screen" style="display:flex; align-items:center; justify-content:center; background:#0d0d0d;">
+            <div class="rdp-placeholder" id="rdp-placeholder" style="text-align:center;">
+              <i class="fa-solid fa-display rdp-placeholder-icon" style="color:var(--theme);"></i>
+              <div style="font-size:36px;color:#ffffff;font-weight:700;letter-spacing:2px;margin:4px 0 0 0;">作业上传系统 桌面分身</div>
+              <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin:22px 0 6px 0;">
+                <span id="rdp-status-title-dot" style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
+                <span id="rdp-status-title" class="rdp-placeholder-text" style="font-size:22px;color:#ffffff;font-weight:700;">服务未启动</span>
+              </div>
+              <div id="rdp-status-desc" style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">启动后将在桌面独立弹出窗口</div>
+              <div id="rdp-controls" style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn btn-primary" id="btn-rdp-start"><i class="fa-solid fa-play"></i> 连接服务</button>
+              </div>
             </div>
           </div>
         </div>
