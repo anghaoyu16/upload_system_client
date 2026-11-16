@@ -1732,7 +1732,7 @@ body.with-bg .xxt-placeholder {
 
 /* 【浏览器标签栏】 */
 .browser-tabbar {
-  background: var(--tabbar-bg);
+  background: rgba(215, 215, 215, 0.22);
   display: flex;
   align-items: flex-end;
   padding: 6px 8px 0 8px;
@@ -1781,7 +1781,7 @@ body.with-bg .xxt-placeholder {
 }
 
 .browser-tabs .browser-tab.active {
-  background: var(--tab-active-bg);
+  background: rgba(255, 255, 255, 0.75);
   color: var(--theme);
   font-weight: 500;
   z-index: 2;
@@ -1797,7 +1797,7 @@ body.with-bg .xxt-placeholder {
   width: 10px;
   height: 10px;
   pointer-events: none;
-  background: radial-gradient(circle at 0 0, transparent 10px, var(--tab-active-bg) 10px);
+  background: radial-gradient(circle at 0 0, transparent 10px, rgba(255, 255, 255, 0.75) 10px);
 }
 
 /* 右侧向外倒角 */
@@ -1809,12 +1809,12 @@ body.with-bg .xxt-placeholder {
   width: 10px;
   height: 10px;
   pointer-events: none;
-  background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-active-bg) 10px);
+  background: radial-gradient(circle at 100% 0, transparent 10px, rgba(255, 255, 255, 0.75) 10px);
 }
 
 /* 地址栏无缝衔接 */
 .browser-addressbar {
-  background: var(--tab-active-bg);
+  background: rgba(255, 255, 255, 0.75);
   border-top: none;
   position: relative;
   z-index: 1;
@@ -1898,7 +1898,7 @@ body.with-bg .xxt-placeholder {
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  background: var(--tab-active-bg);
+  background: rgba(255, 255, 255, 0.75);
   flex-shrink: 0;
 }
 .browser-nav-btn {
@@ -1924,7 +1924,7 @@ body.with-bg .xxt-placeholder {
   font-size: 12px;
   font-family: inherit;
   outline: none;
-  background: var(--tab-active-bg);
+  background: rgba(255, 255, 255, 0.75);
   color: var(--text);
   transition: border-color var(--transition);
 }
@@ -1938,7 +1938,7 @@ body.with-bg .xxt-placeholder {
   padding: 16px;
   overflow-y: auto;
   height: 100%;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.5);
 }
 .browser-history-item {
   display: flex;
@@ -2117,7 +2117,7 @@ body.with-bg .xxt-placeholder {
 /* ===== 学习通标签栏：同等修复 ===== */
 /* ========================================================= */
 .xxt-toolbar {
-  background: var(--tabbar-bg);
+  background: rgba(215, 215, 215, 0.28);
   display: flex;
   align-items: flex-end;
   padding: 6px 8px 0 8px;
@@ -2340,10 +2340,10 @@ body.with-bg .rdp-container {
 .rdp-toolbar {
   background: #1f1f1f;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 8px 0 8px;
+  padding: 0 8px;
   border-bottom: 1px solid #141414;
   flex-shrink: 0;
   min-height: 38px;
