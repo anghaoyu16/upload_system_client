@@ -1,10 +1,4 @@
 const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, session, protocol, safeStorage, shell, screen, clipboard, webContents } = require('electron');
-const _origShellOpenExternal = shell.openExternal;
-shell.openExternal = function(url, options) {
-    console.log('[Main] shell.openExternal CALL:', url, '| blocked:', !!isBlockedProtocol(url));
-    console.log(new Error('DEBUG stack').stack);
-    return _origShellOpenExternal.call(shell, url, options);
-};
 const path = require('path');
 const fs = require('fs');
 const http = require('http');

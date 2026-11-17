@@ -405,7 +405,14 @@
             <button class="browser-nav-btn" id="browser-nav-go" title="前往"><i class="fa-solid fa-arrow-right-to-bracket"></i></button>
           </div>
           <div class="browser-content">
-            <div id="browser-webview-container" style="width:100%;height:100%;position:relative;"></div>
+            <div id="browser-webview-container" style="width:100%;height:100%;position:relative;">
+              <div id="browser-error-overlay">
+                <i class="fa-regular fa-file"></i>
+                <div id="browser-error-title"></div>
+                <div id="browser-error-desc"></div>
+                <button id="browser-error-retry">重新加载</button>
+              </div>
+            </div>
             <div class="browser-history" id="browser-history">
               <div style="text-align:center;color:var(--text-secondary);padding:40px;">
                 <i class="fa-solid fa-globe" style="font-size:48px;opacity:0.3;display:block;margin-bottom:12px;"></i>
@@ -506,6 +513,7 @@
               <button class="settings-tab" data-tab="browser"><i class="fa-solid fa-globe"></i> 浏览器</button>
               <button class="settings-tab" data-tab="mmd"><i class="fa-solid fa-cube"></i> MMD模型</button>
               <button class="settings-tab" data-tab="developer" id="developer-tab" style="display:none;"><i class="fa-solid fa-code"></i> 开发者选项</button>
+              <button class="settings-tab" data-tab="about"><i class="fa-solid fa-circle-info"></i> 关于</button>
             </div>
             <div class="settings-panels">
             <div class="settings-panel active" id="panel-general">
@@ -948,6 +956,28 @@
               </label>
             </div>
             </div>
+            <div class="settings-panel" id="panel-about">
+            <div class="settings-item">
+              <div>
+                <div class="settings-label"><i class="fa-solid fa-file-contract"></i> 用户协议</div>
+                <div class="settings-desc">查看用户协议与使用条款</div>
+              </div>
+              <button class="btn btn-outline btn-sm" id="about-agreement-btn">阅读用户协议</button>
+            </div>
+            <div class="settings-item">
+              <div>
+                <div class="settings-label"><i class="fa-solid fa-bug"></i> 问题反馈</div>
+                <div class="settings-desc">遇到问题可前往 GitHub Issues 提交反馈</div>
+              </div>
+              <button class="btn btn-outline btn-sm" id="about-feedback-btn"><i class="fa-solid fa-up-right-from-square"></i> 去反馈</button>
+            </div>
+            <div class="settings-item">
+              <div>
+                <div class="settings-label"><i class="fa-solid fa-tag"></i> 当前版本</div>
+                <div class="settings-desc" id="about-current-version">v1.4.2</div>
+              </div>
+            </div>
+            </div>
             </div>
           </div>
         </div>
@@ -998,9 +1028,7 @@
               <span class="rdp-status-text" id="rdp-status-text">服务离线</span>
             </div>
             <div class="rdp-toolbar-actions">
-              <button class="btn btn-outline btn-sm" id="rdp-security-btn" title="打开安全选项"><i class="fa-solid fa-shield-halved"></i> 打开安全选项</button>
-              <button class="btn btn-outline btn-sm" id="rdp-disconnect-btn" title="断开连接"><i class="fa-solid fa-link-slash"></i> 断开连接</button>
-              <button class="btn btn-outline btn-sm" id="rdp-logoff-btn" title="注销"><i class="fa-solid fa-right-from-bracket"></i> 注销</button>
+              <button class="btn btn-outline btn-sm" id="rdp-logoff-btn" title="注销并关闭"><i class="fa-solid fa-right-from-bracket"></i> 注销并关闭</button>
               <button class="btn btn-primary btn-sm" id="rdp-connect-btn" title="启动"><i class="fa-solid fa-play"></i> 启动</button>
             </div>
           </div>
@@ -1063,6 +1091,24 @@
     <div class="modal-actions">
       <button class="btn" id="xxt-confirm-cancel" style="background:#6c757d;color:#fff;">取消</button>
       <button class="btn btn-primary" id="xxt-confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="about-agreement-modal">
+  <div class="modal-content" style="max-width:560px;">
+    <h3><i class="fa-solid fa-file-contract"></i> 用户协议</h3>
+    <div style="margin:14px 0;color:var(--text-secondary);font-size:13px;line-height:1.9;max-height:52vh;overflow-y:auto;text-align:justify;">
+      <p>欢迎使用「作业上传系统」。在使用本软件前，请您仔细阅读并充分理解本协议的全部内容。</p>
+      <p><b>一、使用许可</b><br>本软件仅用于个人学习、作业管理及数据同步等正常用途，禁止用于任何违法违规行为。</p>
+      <p><b>二、账号与登录</b><br>您应使用本人账号登录，妥善保管账号信息。因个人原因导致的账号信息泄露，由您自行承担。</p>
+      <p><b>三、数据与隐私</b><br>本软件上传的数据将存储于您配置的服务器。请注意服务器端数据的合规性，请您妥善处理涉及他人隐私的数据。</p>
+      <p><b>四、第三方服务</b><br>本软件可能集成学习通、浏览器、AI 对话等第三方能力，其由各自服务商提供并遵循其自身条款。</p>
+      <p><b>五、免责声明</b><br>本软件按“现状”提供，开发者不对因使用本软件造成的任何直接或间接损失承担责任。</p>
+      <p><b>六、协议变更</b><br>开发者有权根据实际情况更新本协议，更新后将在应用中公示或以其他方式告知，请留意相关通知。</p>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary" id="about-agreement-close">知道了</button>
     </div>
   </div>
 </div>

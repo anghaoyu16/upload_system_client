@@ -3914,6 +3914,10 @@
 
     // 桌面分身控制面板：监听服务状态并初始化按钮（不再使用旧截图帧渲染）
     initRdpPanel();
+    var rdpConnectBtn = $('rdp-connect-btn');
+    var logoffBtn = $('rdp-logoff-btn');
+    if (rdpConnectBtn) rdpConnectBtn.onclick = function () { if (API && API.startChildSession) API.startChildSession(); };
+    if (logoffBtn) logoffBtn.onclick = function () { if (API && API.logoffChildSession) API.logoffChildSession(); updateRdpUI; };
 
     // 主动拉取背景信息作为兜底，防止 did-finish-load 事件竞态丢失
     if (API && API.getBackgroundInfo) {
@@ -5338,6 +5342,38 @@
         }
         var panel = document.getElementById('panel-' + tabName);
         if (panel) panel.classList.add('active');
+      });
+    }
+
+    // 关于面板
+    var agreementBtn_ = $('about-agreement-btn');
+    if (agreementBtn_) {
+      agreementBtn_.addEventListener('click', function() {
+        var m = $('about-agreement-modal');
+        if (m) m.classList.add('show');
+      });
+    }
+    var agreementClose_ = $('about-agreement-close');
+    if (agreementClose_) {
+      agreementClose_.addEventListener('click', function() {
+        var m = $('about-agreement-modal');
+        if (m) m.classList.remove('show');
+      });
+    }
+    var agreementModal_ = $('about-agreement-modal');
+    if (agreementModal_) {
+      agreementModal_.addEventListener('click', function(e) {
+        if (e.target === agreementModal_) agreementModal_.classList.remove('show');
+      });
+    }
+    var feedbackBtn_ = $('about-feedback-btn');
+    if (feedbackBtn_) {
+      feedbackBtn_.addEventListener('click', function() {
+        if (window.electronAPI && window.electronAPI.openExternal) {
+          window.electronAPI.openExternal('https://github.com/anghaoyu16/upload_system_client/issues');
+        } else {
+          window.open('https://github.com/anghaoyu16/upload_system_client/issues', '_blank');
+        }
       });
     }
 
@@ -7502,6 +7538,13 @@
       if (tabId === activeTabId) setGlobalProgress(false);
     });
 
+    webview.addEventListener('crashed', () => {
+      console.log('[Browser] webview crashed, showing recovery prompt:', webview.getURL() || '');
+      webview._loadFailed = true;
+      webview._loadFailedText = '网页渲染崩溃了 请尝试重新加载';
+      showBrowserErrorOverlay(-7, '网页渲染崩溃了 请尝试重新加载', webview.getURL() || '', tabId);
+    });
+
     webview.addEventListener('did-finish-load', () => {
       console.log('[Browser] did-finish-load, reinject glass CSS');
       injectBrowserGlassCSS(webview);
@@ -7522,10 +7565,14 @@
 
     webview.addEventListener('did-fail-load', (e) => {
       console.error('[Browser] did-fail-load:', e.errorCode, e.errorDescription, e.validatedURL);
-      if (e.errorCode !== -3) showToast('页面加载失败', e.errorDescription, 'error', 4000);
+      if (e.errorCode !== -3) {
+        showToast('页面加载失败', e.errorDescription, 'error', 4000);
+        showBrowserErrorOverlay(e.errorCode, e.errorDescription, e.validatedURL, tabId);
+      }
     });
 
     webview.addEventListener('media-started-playing', () => {
+      hideBrowserErrorOverlay(tabId);
       const tab = browserTabs.find(t => t.id === tabId);
       if (tab) {
         tab.audible = true;
@@ -7594,6 +7641,7 @@
       `).catch(function(err){console.error('[Browser] insertCSS error:',err);});
       injectBrowserGlassCSS(webview);
       injectBlockedProtocolFilter(webview);
+      injectLocalCompositingFix(webview);
       // 脚本注入已由 webview-preload.js 预加载脚本处理，无需 executeJavaScript
     });
 
@@ -7612,6 +7660,10 @@
   }
 
   function injectBrowserGlassCSS(webview) {
+    const url = webview ? String(webview.getURL ? webview.getURL() : webview.src || '') : '';
+    if (!url || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i.test(url)) {
+      return;
+    }
     if (!browserGlassEnabled) {
       const removeJs = `(function(){var s=document.getElementById('glass-effect-style');if(s)s.remove();})()`;
       if (webview) {
@@ -7641,6 +7693,15 @@
         }
       });
     }
+  }
+
+  function injectLocalCompositingFix(webview) {
+    try {
+      const url = String(webview.getURL ? webview.getURL() : webview.src || '');
+      if (!/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:[0-9]+)?/i.test(url)) return;
+    } catch (e) { return; }
+    const js = `(function(){var s=document.getElementById('local-compositing-fix');if(!s){s=document.createElement('style');s.id='local-compositing-fix';document.head.appendChild(s);}s.textContent='html,body{transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;isolation:isolate;}canvas,img,svg,video{transform:translateZ(0);}';})()`;
+    webview.executeJavaScript(js).catch(function(){});
   }
 
   function injectBlockedProtocolFilter(webview) {
@@ -7795,6 +7856,50 @@
     activateTab(activeTabId);
   }
 
+  function getErrorText(code, desc) {
+    const map = {
+      '-105': '无法解析主机', '-106': '网络已断开', '-109': '地址无法访问',
+      '-100': '连接被拒绝', '-101': '连接已重置', '-102': '连接被拒绝',
+      '-118': '连接超时', '-111': '连接已被拒绝', '-130': '证书错误',
+      '-200': '连接超时', '-137': '连接超时', '-6': '文件未找到'
+    };
+    return map[String(code)] || (desc && desc !== 'ERR_FAILED' ? desc : '无法加载此页面');
+  }
+
+  function showBrowserErrorOverlay(code, desc, url, tabId) {
+    var tab = tabId ? browserTabs.find(function(t) { return t.id === tabId; }) : null;
+    if (tab) { tab._loadFailed = true; tab._loadFailedText = getErrorText(code, desc); }
+    if (tabId !== activeTabId) return;
+    var ov = document.getElementById('browser-error-overlay');
+    if (!ov) return;
+    document.getElementById('browser-error-title').textContent = '无法访问此页面';
+    document.getElementById('browser-error-desc').textContent = getErrorText(code, desc);
+    ov.style.display = 'flex';
+  }
+
+  function hideBrowserErrorOverlay(tabId) {
+    if (tabId) {
+      var t = browserTabs.find(function(x) { return x.id === tabId; });
+      if (t) { t._loadFailed = false; t._loadFailedText = ''; }
+    }
+    if (tabId && tabId !== activeTabId) return;
+    var ov = document.getElementById('browser-error-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  (function() {
+    var btn = document.getElementById('browser-error-retry');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        var wv = getActiveWebview();
+        if (wv) {
+          hideBrowserErrorOverlay(activeTabId);
+          wv.reload();
+        }
+      });
+    }
+  })();
+
   function createWebviewForTab(tab, activate) {
     const container = $('browser-webview-container');
     const webview = document.createElement('webview');
@@ -7867,6 +7972,19 @@
         $('browser-url').value = tab.url;
       }
       $('browser-history').style.display = 'none';
+      if (tab._loadFailed) {
+        var ov = document.getElementById('browser-error-overlay');
+        var tEl = document.getElementById('browser-error-title');
+        var dEl = document.getElementById('browser-error-desc');
+        if (ov && tEl && dEl) {
+          tEl.textContent = '无法访问此页面';
+          dEl.textContent = tab._loadFailedText;
+          ov.style.display = 'flex';
+        }
+      } else {
+        var hideOv = document.getElementById('browser-error-overlay');
+        if (hideOv) hideOv.style.display = 'none';
+      }
     } else {
       showHistory();
     }

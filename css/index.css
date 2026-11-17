@@ -59,8 +59,8 @@ body.high-contrast .theme-color.selected {
 }
 
 body.dark {
-  --bg: #1a1a2e;
-  --bg-secondary: #16213e;
+  --bg: #101114;
+  --bg-secondary: #16181c;
   --text: #e2e8f0;
   --text-secondary: #a0aec0;
   --border: rgba(255, 255, 255, 0.06);
@@ -68,6 +68,34 @@ body.dark {
   --card-shadow: 0 2px 12px rgba(0,0,0,0.3);
   --titlebar-btn-color: #ffffff;
   --glass-border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* 深色模式：标签栏/激活标签适配 */
+body.dark .browser-tabbar { background: rgba(40, 44, 52, 0.55); }
+body.dark .xxt-toolbar { background: rgba(40, 44, 52, 0.55); }
+body.dark .browser-url { background: rgba(45, 50, 60, 0.8); color: #e2e8f0; }
+body.dark .browser-addressbar { background: rgba(60, 66, 80, 0.9); }
+body.dark .browser-history { background: rgba(30, 34, 40, 0.7); }
+body.dark .browser-tabs .browser-tab.active {
+  background: rgba(60, 66, 80, 0.9);
+  color: #e2e8f0;
+}
+body.dark .browser-tabs .browser-tab.active::before {
+  background: radial-gradient(circle at 0 0, transparent 10px, rgba(60, 66, 80, 0.9) 10px);
+}
+body.dark .browser-tabs .browser-tab.active::after {
+  background: radial-gradient(circle at 100% 0, transparent 10px, rgba(60, 66, 80, 0.9) 10px);
+}
+/* 学习通激活标签在深色下仍保持白色 */
+body.dark .xxt-tabs .xxt-tab.active {
+  background: #ffffff;
+  color: var(--theme);
+}
+body.dark .xxt-tabs .xxt-tab.active::before {
+  background: radial-gradient(circle at 0 0, transparent 10px, #ffffff 10px);
+}
+body.dark .xxt-tabs .xxt-tab.active::after {
+  background: radial-gradient(circle at 100% 0, transparent 10px, #ffffff 10px);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -95,7 +123,7 @@ body {
   background: var(--splash-bg, #ffffff);
   transition: opacity 0.1s ease-out;
 }
-body.dark #splash-screen { background: var(--splash-bg, #1a1a2e); }
+body.dark #splash-screen { background: var(--splash-bg, #14161a); }
 #splash-screen.fade-out {
   opacity: 0;
   pointer-events: none;
@@ -1940,6 +1968,26 @@ body.with-bg .xxt-placeholder {
   height: 100%;
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* 浏览器加载失败错误层 */
+#browser-error-overlay {
+  display: none;
+  position: absolute; inset: 0; z-index: 20;
+  background: var(--bg-secondary); color: var(--text-secondary);
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 20px;
+}
+#browser-error-overlay.show { display: flex; }
+#browser-error-overlay i { font-size: 44px; opacity: 0.4; }
+#browser-error-title { font-size: 16px; font-weight: 600; color: var(--text); }
+#browser-error-desc { font-size: 13px; max-width: 420px; line-height: 1.7; }
+#browser-error-retry {
+  margin-top: 6px; padding: 6px 18px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--theme); color: #fff; font-size: 13px; cursor: pointer;
+  transition: opacity var(--transition);
+}
+#browser-error-retry:hover { opacity: 0.85; }
 .browser-history-item {
   display: flex;
   align-items: center;
@@ -2165,7 +2213,7 @@ body.with-bg .xxt-placeholder {
 }
 
 .xxt-tabs .xxt-tab.active {
-  background: var(--tab-active-bg);
+  background: #ffffff;
   color: var(--theme);
   font-weight: 600;
   z-index: 2;
@@ -2181,7 +2229,7 @@ body.with-bg .xxt-placeholder {
   width: 10px;
   height: 10px;
   pointer-events: none;
-  background: radial-gradient(circle at 0 0, transparent 10px, var(--tab-active-bg) 10px);
+  background: radial-gradient(circle at 0 0, transparent 10px, #ffffff 10px);
 }
 
 /* 学习通右侧向外倒角 */
@@ -2193,13 +2241,13 @@ body.with-bg .xxt-placeholder {
   width: 10px;
   height: 10px;
   pointer-events: none;
-  background: radial-gradient(circle at 100% 0, transparent 10px, var(--tab-active-bg) 10px);
+  background: radial-gradient(circle at 100% 0, transparent 10px, #ffffff 10px);
 }
 
 /* 学习通下方页面无缝衔接 */
 .xxt-toolbar + .browser-content,
 .xxt-toolbar ~ .browser-content {
-  background: var(--tab-active-bg);
+  background: #ffffff;
   border-top: none;
   position: relative;
   z-index: 1;
