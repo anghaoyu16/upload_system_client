@@ -276,6 +276,22 @@ body.splash-active #titlebar #update-reload-btn {
   background: var(--hover-bg);
 }
 
+#btn-start-rdp {
+  width: auto;
+  padding: 0 10px;
+  border-radius: 50px;
+  border: 2px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+  color: var(--titlebar-btn-color);
+  -webkit-app-region: no-drag;
+  white-space: nowrap;
+}
+#btn-start-rdp:hover {
+  background: var(--hover-bg);
+}
+
 .titlebar-right {
   display: flex;
   align-items: center;

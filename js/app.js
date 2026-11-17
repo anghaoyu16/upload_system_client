@@ -4610,6 +4610,13 @@
       }
     });
 
+    var startRdpBtn = $('btn-start-rdp');
+    if (startRdpBtn) startRdpBtn.addEventListener('click', () => {
+      console.log('[btn-start-rdp] clicked, starting child session');
+      if (API && API.startChildSession) API.startChildSession();
+      navigateTo('desktop-clone');
+    });
+
     $('login-submit').addEventListener('click', () => {
       if ($('login-modal-title').textContent.includes('注册')) register();
       else login();
