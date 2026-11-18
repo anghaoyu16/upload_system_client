@@ -499,6 +499,8 @@ svg { display: inline-block !important; }
   padding: 0;
   background: #f5f7fa;
   align-self: stretch;
+  height: 40px;
+  align-items: center;
   border-radius: 6px 6px 0 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   font-size: 13px;
@@ -571,4 +573,24 @@ svg { display: inline-block !important; }
 .chaoxing-skin .page.active .python-editor-panel,
 .chaoxing-skin .page.active .python-terminal-panel {
   animation: none !important;
+}
+
+/* 学习通皮肤 + 有背景时：body 及各外壳层改为透明，露出动态/自定义背景 */
+html.chaoxing-skin body.with-bg {
+  background: transparent;
+}
+html.chaoxing-skin body.with-bg #app {
+  background: transparent;
+}
+html.chaoxing-skin body.with-bg #main-content {
+  background: transparent;
+}
+html.chaoxing-skin body.with-bg #cx-titlebar {
+  background: transparent;
+}
+html.chaoxing-skin body.with-bg #sidebar {
+  background: transparent;
+}
+html.chaoxing-skin body.with-bg #sidebar::before {
+  background: transparent;
 }
