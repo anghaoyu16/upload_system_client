@@ -1115,13 +1115,13 @@ body.dark #network-overlay {
 #network-overlay.hidden .message-box { transform: scale(0.9); opacity: 0; }
 #network-overlay.show .message-box { transform: scale(1); opacity: 1; }
 body.dark #network-overlay .message-box {
-  background: #1a1a2e;
+  background: #16181c;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 body.dark #network-overlay .message-box h2 { color: #e2e8f0; }
 body.dark #network-overlay .message-box p { color: #a0aec0; }
 body.dark #network-overlay .message-box {
-  background: #1a1a2e;
+  background: #16181c;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 body.dark #network-overlay .message-box h2 { color: #e2e8f0; }
@@ -1688,13 +1688,13 @@ body.with-bg.no-glass .card {
   font-family: inherit;
 }
 body.dark .ip-selector {
-  background-color: #1a1a2e;
+  background-color: #16181c;
   color: #e2e8f0;
   border-color: #2d3748;
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23e2e8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
 }
 body.dark .ip-selector option {
-  background-color: #1a1a2e;
+  background-color: #16181c;
   color: #e2e8f0;
 }
 

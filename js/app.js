@@ -645,9 +645,9 @@
     else document.body.classList.remove('dark');
     const op = (100 - cardOpacity) / 100;
     document.documentElement.style.setProperty('--card-bg-opacity', op);
-    document.documentElement.style.setProperty('--card-bg', darkMode ? hexToRgba('#1a1a2e', op) : hexToRgba('#ffffff', op));
-    document.documentElement.style.setProperty('--card-bg-secondary', darkMode ? hexToRgba('#16213e', op) : hexToRgba('#f5f7fa', op));
-    document.documentElement.style.setProperty('--glass-bg', darkMode ? hexToRgba('#1a1a2e', op) : hexToRgba('#ffffff', op));
+    document.documentElement.style.setProperty('--card-bg', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#ffffff', op));
+    document.documentElement.style.setProperty('--card-bg-secondary', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#f5f7fa', op));
+    document.documentElement.style.setProperty('--glass-bg', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#ffffff', op));
     const hasBg = (bgType !== 'none' && bgPath);
     const glassEnabled = !document.body.classList.contains('no-glass');
     const cardBlur = parseInt(localStorage.getItem('cardBlurAmount') || '0');
@@ -3694,7 +3694,7 @@
     var splashStartTime = performance.now();
     var splashMinDuration = 300;
     var splashVideoMode = false;
-    if (splashEl && document.body.classList.contains('dark')) splashEl.style.setProperty('--splash-bg', '#1a1a2e');
+    if (splashEl && document.body.classList.contains('dark')) splashEl.style.setProperty('--splash-bg', '#16181c');
     console.log('[Splash] init, el:', !!splashEl, 'ring:', !!splashRingFg, 'dark:', document.body.classList.contains('dark'), 'splashType:', splashType);
     if (API && API.setEscHideEnabled) API.setEscHideEnabled(false);
     var customSrc = null;
@@ -7678,7 +7678,7 @@
       return;
     }
     const op = (100 - cardOpacity) / 100;
-    const glassBg = darkMode ? hexToRgba('#1a1a2e', op) : hexToRgba('#ffffff', op);
+    const glassBg = darkMode ? hexToRgba('#16181c', op) : hexToRgba('#ffffff', op);
     const glassEnabled = !document.body.classList.contains('no-glass');
     const cardBlur = parseInt(localStorage.getItem('cardBlurAmount') || '0');
     const glassBlur = glassEnabled && cardBlur > 0 ? 'blur(' + cardBlur + 'px)' : 'none';
