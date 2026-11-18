@@ -287,7 +287,7 @@ public class RdpWindow
     static void LayoutRdp()
     {
         if (HostPanel == null || Rdp == null || baseW <= 0 || baseH <= 0) return;
-        int m = 4;
+        int m = isFullScreen ? 0 : 4;   // 全屏时铺满整个屏幕，不留4px黑边
         int hw = HostPanel.ClientSize.Width - m * 2;
         int hh = HostPanel.ClientSize.Height - m;
         if (hw <= 0 || hh <= 0) return;
@@ -360,6 +360,7 @@ public class RdpWindow
             UpdateTopButton();
             if (TitleBar != null) TitleBar.Visible = false;
             LayoutRdp();
+            SyncOverlayBounds();
             ShowToast();
             Log("Fullscreen ON");
         }
@@ -374,6 +375,7 @@ public class RdpWindow
             MainForm.WindowState = prevState;
             if (TitleBar != null) TitleBar.Visible = true;
             LayoutRdp();
+            SyncOverlayBounds();
             ReapplyFrameStyle();
             Log("Fullscreen OFF");
         }
