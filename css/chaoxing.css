@@ -594,3 +594,14 @@ html.chaoxing-skin body.with-bg #sidebar {
 html.chaoxing-skin body.with-bg #sidebar::before {
   background: transparent;
 }
+
+/* 学习通皮肤 + 有背景：姓名文字改为黑色，导航按钮改为半透明白色 */
+html.chaoxing-skin body.with-bg .cx-avatar-name {
+  color: #000;
+}
+html.chaoxing-skin body.with-bg .cx-nav-item:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+html.chaoxing-skin body.with-bg .cx-nav-item.active {
+  background: rgba(255, 255, 255, 0.65) !important;
+}
