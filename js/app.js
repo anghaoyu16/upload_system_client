@@ -645,9 +645,9 @@
     else document.body.classList.remove('dark');
     const op = (100 - cardOpacity) / 100;
     document.documentElement.style.setProperty('--card-bg-opacity', op);
-    document.documentElement.style.setProperty('--card-bg', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#ffffff', op));
+    document.documentElement.style.setProperty('--card-bg', darkMode ? hexToRgba('#181920', op) : hexToRgba('#ffffff', op));
     document.documentElement.style.setProperty('--card-bg-secondary', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#f5f7fa', op));
-    document.documentElement.style.setProperty('--glass-bg', darkMode ? hexToRgba('#16181c', op) : hexToRgba('#ffffff', op));
+    document.documentElement.style.setProperty('--glass-bg', darkMode ? hexToRgba('#181920', op) : hexToRgba('#ffffff', op));
     const hasBg = (bgType !== 'none' && bgPath);
     const glassEnabled = !document.body.classList.contains('no-glass');
     const cardBlur = parseInt(localStorage.getItem('cardBlurAmount') || '0');
@@ -746,28 +746,25 @@
     }
     container.appendChild(bar);
     void bar.offsetWidth;
-    bar.style.transition = 'height 0.12s ease-out, opacity 0.07s ease-out';
+    bar.style.transition = 'height 0.15s ease-out, opacity 0.07s ease-out';
     bar.style.height = barHeight + 'px';
     bar.style.opacity = '1';
     setTimeout(function() {
       if (isMovingDown) {
-        bar.style.transition = 'top 0.12s ease-in-out, height 0.12s ease-in-out';
+        bar.style.transition = 'top 0.12s ease-in-out, height 0.12s ease-in-out, opacity 0.1s ease-in 0.15s';
         bar.style.top = (nextMidY - 20) + 'px';
       } else {
         var currentTop = prevY - barHeight;
         bar.style.bottom = 'auto';
         bar.style.top = currentTop + 'px';
         void bar.offsetWidth;
-        bar.style.transition = 'top 0.12s ease-in-out, height 0.12s ease-in-out';
+        bar.style.transition = 'top 0.12s ease-in-out, height 0.12s ease-in-out, opacity 0.1s ease-in 0.15s';
         bar.style.top = (nextMidY - 20) + 'px';
       }
       bar.style.height = '40px';
-    }, 130);
-    setTimeout(function() {
-      bar.style.transition = isAdjacent ? 'opacity 0.01s' : 'opacity 0.2s';
       bar.style.opacity = '0';
-    }, 215);
-    setTimeout(function() { bar.remove(); }, 400);
+    }, 180);
+    setTimeout(function() { bar.remove(); }, 600);
     clearTimeout(_transitionBarTimer);
     _transitionBarTimer = setTimeout(function() { _transitionBarBrightness = 1; }, 300);
   }
