@@ -554,6 +554,7 @@ body.dark .avatar-popup {
   position: relative;
   overflow: hidden;
   contain: paint;
+  z-index: 3;
   background: var(--card-bg-secondary, var(--bg-secondary));
   border-radius: var(--radius) 0 0 0;
   border-top: 2px solid var(--border);
@@ -1490,13 +1491,13 @@ input:checked + .slider:before { transform: translateX(24px); }
 .sidebar-btn.downloading { color: var(--theme); background: var(--theme-bg); }
 
 #global-progress {
-  position: fixed;
-  top: var(--titlebar-h);
-  left: calc(var(--sidebar-w) + 8px);
-  width: calc(100% - var(--sidebar-w) - 16px);
+  position: absolute;
+  top: 0;
+  left: 2px;
+  right: 2px;
   height: 2px;
   background-color: var(--theme);
-  z-index: 99999;
+  z-index: 9999;
   pointer-events: none;
   opacity: 0;
   transform-origin: left;
