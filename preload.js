@@ -129,6 +129,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 桌面分身（独立原生 RDP 窗口 + 后台服务）
     startChildSession: () => ipcRenderer.invoke('child-session-start'),
     getRdpStatus: () => ipcRenderer.invoke('child-session-status'),
+    getRdpConfig: () => ipcRenderer.invoke('rdp-config-get'),
+    setRdpConfig: (cfg) => ipcRenderer.invoke('rdp-config-set', cfg),
+    getScreenSize: () => ipcRenderer.invoke('get-screen-size'),
     showChildSession: () => ipcRenderer.send('child-session-show'),
     hideChildSession: () => ipcRenderer.send('child-session-hide'),
     logoffChildSession: () => ipcRenderer.send('child-session-logoff'),

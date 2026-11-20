@@ -1044,6 +1044,7 @@
               </div>
               <div id="rdp-status-desc" style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">启动后将在桌面独立弹出窗口</div>
               <div id="rdp-controls" style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn btn-outline" id="btn-rdp-config"><i class="fa-solid fa-gear"></i> 配置</button>
                 <button class="btn btn-primary" id="btn-rdp-start"><i class="fa-solid fa-play"></i> 连接服务</button>
               </div>
             </div>
@@ -1093,6 +1094,47 @@
     <div class="modal-actions">
       <button class="btn" id="xxt-confirm-cancel" style="background:#6c757d;color:#fff;">取消</button>
       <button class="btn btn-primary" id="xxt-confirm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rdp-config-modal">
+  <div class="modal-content" style="max-width:420px;">
+    <h3><i class="fa-solid fa-gear"></i> 桌面分身配置</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px 0;">
+      <span style="font-size:13px;">启用自定义分辨率</span>
+      <label class="switch">
+        <input type="checkbox" id="rdp-cfg-enabled">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div id="rdp-cfg-fields" style="display:none;margin-top:8px;">
+      <div class="rdp-cfg-row">
+        <div class="rdp-cfg-label"><span>宽度</span><span class="rdp-cfg-val" id="rdp-cfg-w-val"></span></div>
+        <input type="range" id="rdp-cfg-w" min="640" max="1920" step="80">
+        <div class="rdp-cfg-range" id="rdp-cfg-w-range"></div>
+      </div>
+      <div class="rdp-cfg-row">
+        <div class="rdp-cfg-label"><span>高度</span><span class="rdp-cfg-val" id="rdp-cfg-h-val"></span></div>
+        <input type="range" id="rdp-cfg-h" min="480" max="1080" step="60">
+        <div class="rdp-cfg-range" id="rdp-cfg-h-range"></div>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn" id="rdp-cfg-cancel">取消</button>
+      <button class="btn btn-primary" id="rdp-cfg-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rdp-reload-modal">
+  <div class="modal-content" style="max-width:380px;">
+    <h3><i class="fa-solid fa-triangle-exclamation"></i> 是否重新连接服务</h3>
+    <p style="margin:12px 0;color:var(--text-secondary);font-size:13px;line-height:1.8;">服务正在运行，新配置需要重新连接服务才能立即生效。<br>选择"不重新加载"将在下一次启动服务时生效。</p>
+    <div class="modal-actions">
+      <button class="btn" id="rdp-reload-cancel" style="background:#6c757d;color:#fff;">取消</button>
+      <button class="btn" id="rdp-reload-not">不重新加载</button>
+      <button class="btn btn-primary" id="rdp-reload-do">重新加载</button>
     </div>
   </div>
 </div>

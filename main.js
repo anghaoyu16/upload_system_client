@@ -259,9 +259,16 @@ function startChildSession() {
     const psPath = path.join(getRdpDir(), 'rdp-child.ps1');
     if (!fs.existsSync(psPath)) return;
 
-    // 自动读取主屏幕分辨率
+    // 自动读取主屏幕物理分辨率（乘以 DPI 缩放因子还原真实像素）
     const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.size;
+    const dpi = primaryDisplay.scaleFactor || 1;
+    let width = Math.round(primaryDisplay.size.width * dpi);
+    let height = Math.round(primaryDisplay.size.height * dpi);
+    const rdpCfg = loadRdpConfig();
+    if (rdpCfg && rdpCfg.enabled) {
+        if (rdpCfg.width > 0) width = rdpCfg.width;
+        if (rdpCfg.height > 0) height = rdpCfg.height;
+    }
 
     try {
         sendChildSessionCmd('');
@@ -282,6 +289,30 @@ function startChildSession() {
         notifyRdpStatus(true);
     } catch (e) { console.error('[ChildSession] spawn 异常:', e); }
 }
+const rdpConfigPath = path.join(app.getPath('userData'), 'rdp-config.json');
+function loadRdpConfig() {
+    try { return JSON.parse(fs.readFileSync(rdpConfigPath, 'utf-8')); }
+    catch (e) { return null; }
+}
+function saveRdpConfig(cfg) {
+    try { fs.writeFileSync(rdpConfigPath, JSON.stringify(cfg, null, 2), 'utf-8'); }
+    catch (e) { console.error('[RdpConfig] 保存失败:', e); }
+}
+ipcMain.handle('rdp-config-get', () => {
+    const c = loadRdpConfig() || {};
+    return { enabled: !!c.enabled, width: c.width || 0, height: c.height || 0 };
+});
+ipcMain.handle('rdp-config-set', (event, cfg) => {
+    saveRdpConfig({ enabled: !!cfg.enabled, width: parseInt(cfg.width, 10) || 0, height: parseInt(cfg.height, 10) || 0 });
+    return true;
+});
+ipcMain.handle('get-screen-size', () => {
+    try {
+        const d = screen.getPrimaryDisplay();
+        const factor = d.scaleFactor || 1;
+        return { width: Math.round(d.size.width * factor), height: Math.round(d.size.height * factor) };
+    } catch (e) { return { width: 1920, height: 1080 }; }
+});
 ipcMain.handle('child-session-start', () => { startChildSession(); return true; });
 ipcMain.handle('child-session-status', () => !!(childSession && !childSession.killed));
 ipcMain.on('child-session-show', () => sendChildSessionCmd('show'));

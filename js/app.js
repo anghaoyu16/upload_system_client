@@ -852,6 +852,7 @@
       if (barDot) { barDot.className = 'rdp-status-dot status-running'; }
       if (titleDot) { titleDot.style.background = '#22c55e'; }
       ctrls.innerHTML =
+        '<button class="btn btn-outline" id="btn-rdp-config"><i class="fa-solid fa-gear"></i> 配置</button>' +
         '<button class="btn btn-primary" id="btn-rdp-show"><i class="fa-solid fa-window-maximize"></i> 打开桌面分身窗口</button>' +
         '<button class="btn btn-outline" id="btn-rdp-reconnect"><i class="fa-solid fa-rotate-right"></i> 重新连接</button>' +
         '<button class="btn btn-outline" id="btn-rdp-hide"><i class="fa-solid fa-eye-slash"></i> 隐藏窗口</button>' +
@@ -864,6 +865,7 @@
       if (barDot) { barDot.className = 'rdp-status-dot status-error'; }
       if (titleDot) { titleDot.style.background = '#f59e0b'; }
       ctrls.innerHTML =
+        '<button class="btn btn-outline" id="btn-rdp-config"><i class="fa-solid fa-gear"></i> 配置</button>' +
         '<button class="btn btn-primary" id="btn-rdp-start"><i class="fa-solid fa-play"></i> 连接服务</button>';
     }
     bindRdpEvents();
@@ -874,6 +876,7 @@
       var el = document.getElementById(id);
       if (el) el.onclick = fn;
     };
+    bind('btn-rdp-config', function () { openRdpConfigDialog(); });
     bind('btn-rdp-start', function () {
       var t = rdpStatusTitle(); if (t) t.textContent = '正在连接...';
       var d = rdpStatusDesc(); if (d) d.textContent = '请稍候';
@@ -892,6 +895,86 @@
     });
   }
 
+  // ====== 桌面分身配置对话框 ======
+  function rdpCfgEl(id) { return document.getElementById(id); }
+
+  function updateRdpCfgSliders() {
+    rdpCfgEl('rdp-cfg-w-val').textContent = rdpCfgEl('rdp-cfg-w').value + 'px';
+    rdpCfgEl('rdp-cfg-h-val').textContent = rdpCfgEl('rdp-cfg-h').value + 'px';
+  }
+
+  function fillRdpConfigFields(cfg, size) {
+    var wEl = rdpCfgEl('rdp-cfg-w');
+    var hEl = rdpCfgEl('rdp-cfg-h');
+    wEl.min = 640; wEl.max = size.width; wEl.step = 80;
+    hEl.min = 480; hEl.max = size.height; hEl.step = 60;
+    rdpCfgEl('rdp-cfg-enabled').checked = !!cfg.enabled;
+    wEl.value = cfg.width >= wEl.min ? Math.min(cfg.width, wEl.max) : size.width;
+    hEl.value = cfg.height >= hEl.min ? Math.min(cfg.height, hEl.max) : size.height;
+    rdpCfgEl('rdp-cfg-w-range').textContent = '640 - ' + size.width;
+    rdpCfgEl('rdp-cfg-h-range').textContent = '480 - ' + size.height;
+    rdpCfgEl('rdp-cfg-fields').style.display = rdpCfgEl('rdp-cfg-enabled').checked ? 'block' : 'none';
+    updateRdpCfgSliders();
+    rdpCfgEl('rdp-config-modal').classList.add('show');
+  }
+
+  function openRdpConfigDialog() {
+    var loaded = function (cfg) {
+      cfg = cfg || { enabled: false, width: 0, height: 0 };
+      if (API && API.getScreenSize) {
+        API.getScreenSize().then(function (size) {
+          fillRdpConfigFields(cfg, size || { width: 1920, height: 1080 });
+        });
+      } else {
+        fillRdpConfigFields(cfg, { width: 1920, height: 1080 });
+      }
+    };
+    if (API && API.getRdpConfig) API.getRdpConfig().then(loaded);
+    else loaded(null);
+  }
+
+  function closeRdpConfigDialog() {
+    var m = rdpCfgEl('rdp-config-modal');
+    if (m) m.classList.remove('show');
+  }
+
+  function saveRdpConfigThen(notify) {
+    var cfg = {
+      enabled: rdpCfgEl('rdp-cfg-enabled').checked,
+      width: parseInt(rdpCfgEl('rdp-cfg-w').value, 10) || 0,
+      height: parseInt(rdpCfgEl('rdp-cfg-h').value, 10) || 0
+    };
+    if (API && API.setRdpConfig) API.setRdpConfig(cfg);
+    closeRdpConfigDialog();
+    if (notify === 'reload') {
+      if (API && API.closeChildSession) API.closeChildSession();
+      setTimeout(function () { if (API && API.startChildSession) API.startChildSession(); }, 1000);
+    }
+  }
+
+  function initRdpConfigDialog() {
+    var el = rdpCfgEl;
+    var enabledEl = el('rdp-cfg-enabled');
+    if (!enabledEl) return;
+    enabledEl.onchange = function () {
+      el('rdp-cfg-fields').style.display = enabledEl.checked ? 'block' : 'none';
+    };
+    el('rdp-cfg-w').oninput = updateRdpCfgSliders;
+    el('rdp-cfg-h').oninput = updateRdpCfgSliders;
+    el('rdp-cfg-cancel').onclick = closeRdpConfigDialog;
+    el('rdp-config-modal').onclick = function (e) { if (e.target === el('rdp-config-modal')) closeRdpConfigDialog(); };
+    el('rdp-cfg-save').onclick = function () {
+      var doSave = function () { saveRdpConfigThen(null); };
+      var askReload = function () { el('rdp-reload-modal').classList.add('show'); };
+      if (API && API.getRdpStatus) API.getRdpStatus().then(function (running) { if (running) askReload(); else doSave(); });
+      else doSave();
+    };
+    el('rdp-reload-cancel').onclick = function () { el('rdp-reload-modal').classList.remove('show'); };
+    el('rdp-reload-not').onclick = function () { el('rdp-reload-modal').classList.remove('show'); saveRdpConfigThen(null); };
+    el('rdp-reload-do').onclick = function () { el('rdp-reload-modal').classList.remove('show'); saveRdpConfigThen('reload'); };
+    el('rdp-reload-modal').onclick = function (e) { if (e.target === el('rdp-reload-modal')) el('rdp-reload-modal').classList.remove('show'); };
+  }
+
   function initRdpPanel() {
     if (API && API.onRdpStatusChanged) {
       API.onRdpStatusChanged(function (running) { updateRdpUI(running); });
@@ -901,6 +984,7 @@
       API.getRdpStatus().then(function (running) { updateRdpUI(!!running); });
     }
     bindRdpEvents();
+    initRdpConfigDialog();
   }
 
   function updateNavButtons() {

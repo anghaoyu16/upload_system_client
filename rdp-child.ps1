@@ -431,9 +431,9 @@ public class RdpWindow
         RdpForm.HotKeyFullScreen = delegate { if (MainForm != null && MainForm.Visible) ToggleFullScreen(); };
         RdpForm.ToggleMaximizeAction = delegate { ToggleMaximize(); };
 
-        // dynamic resolution: always use current primary screen bounds
-        baseW = Screen.PrimaryScreen.Bounds.Width;
-        baseH = Screen.PrimaryScreen.Bounds.Height;
+        // custom resolution: use provided w/h when set, otherwise primary screen bounds
+        baseW = w > 0 ? w : Screen.PrimaryScreen.Bounds.Width;
+        baseH = h > 0 ? h : Screen.PrimaryScreen.Bounds.Height;
         MainForm.Size = new Size(baseW / 2, (int)Math.Round(baseH / 2.0) + 34);
         MinW = Math.Max(320, Math.Min(560, baseW / 3));
         MinH = (int)Math.Round(MinW * ((double)baseH / baseW)) + 34;
