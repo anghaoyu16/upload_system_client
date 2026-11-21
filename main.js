@@ -20,6 +20,8 @@ let isQuitting = false;          // 退出标志
 let escHideEnabled = true;      // ESC隐藏窗口到托盘
 let isDeveloper = false;        // 开发者模式
 let globalShortcutEnabled = true; // 全局快捷键
+let currentZoomPercent = 100;   // 当前页面缩放百分比（同步个性化>无障碍>页面缩放）
+const ZOOM_MIN = 20, ZOOM_MAX = 150, ZOOM_STEP = 10;
 let updateInstallerPath = null;  // 待安装的更新包路径
 let currentBg = null; // 存储当前背景信息
 let commandPollInterval = null;
@@ -1039,6 +1041,17 @@ if (!gotTheLock) {
                 mainWindow.setFullScreen(!mainWindow.isFullScreen());
                 mainWindow.webContents.send('fullscreen-changed', mainWindow.isFullScreen());
             }
+            // 窗口级缩放快捷键：Ctrl + 放大 / Ctrl - 缩小（同步"个性化>无障碍>页面缩放"）
+            if (input.control && !input.alt && !input.meta) {
+                const isZoomIn = input.code === 'Equal' || input.code === 'NumpadAdd';
+                const isZoomOut = input.code === 'Minus' || input.code === 'NumpadSubtract';
+                if (isZoomIn || isZoomOut) {
+                    e.preventDefault();
+                    currentZoomPercent = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoomPercent + (isZoomIn ? ZOOM_STEP : -ZOOM_STEP)));
+                    mainWindow.webContents.setZoomFactor(currentZoomPercent / 100);
+                    mainWindow.webContents.send('zoom-factor-updated', currentZoomPercent);
+                }
+            }
             if (input.control && input.shift && input.key === 'I') {
                 if (!isDeveloper) {
                     e.preventDefault();
@@ -1619,6 +1632,7 @@ if (process.argv.includes('--hidden')) {
         });
 
         ipcMain.on('set-zoom-factor', (event, factor) => {
+            currentZoomPercent = Math.round(factor * 100);
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.setZoomFactor(factor);
             }

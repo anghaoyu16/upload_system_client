@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     setZoomFactor: (factor) => ipcRenderer.send('set-zoom-factor', factor),
     getZoomFactor: () => ipcRenderer.invoke('get-zoom-factor'),
+    onZoomFactorUpdated: (callback) => ipcRenderer.on('zoom-factor-updated', (event, pct) => callback(pct)),
 
     setAlwaysOnTop: (flag) => ipcRenderer.send('set-always-on-top', flag),
     setDeveloper: (dev) => ipcRenderer.send('set-developer', dev),

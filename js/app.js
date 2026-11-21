@@ -5102,6 +5102,20 @@
       });
     }
 
+    // 主进程窗口级快捷键（Ctrl+ / Ctrl-）缩放时同步更新滑块与显示
+    if (API && API.onZoomFactorUpdated) {
+      API.onZoomFactorUpdated(function(pct) {
+        var p = Math.max(20, Math.min(150, Math.round(pct)));
+        zoomSlider.value = p;
+        zoomValue.textContent = p + '%';
+        var wzs = $('window-zoom-slider');
+        var wzv = $('window-zoom-value');
+        if (wzs) wzs.value = p;
+        if (wzv) wzv.textContent = p + '%';
+        localStorage.setItem('zoomFactor', p);
+      });
+    }
+
     // ========== 点击反馈（显示点击位置） ==========
     (function injectTapFeedbackStyle() {
       var tapStyle = document.createElement('style');
