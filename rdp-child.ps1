@@ -35,6 +35,34 @@ public interface IMsRdpExtendedSettings
     object get_Property([MarshalAs(UnmanagedType.BStr)] string name);
 }
 
+[ComImport]
+[Guid("2F079C4C-87B2-4AFD-97AB-20CDB43038AE")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IMsRdpClientNonScriptable
+{
+    void put_ClearTextPassword([MarshalAs(UnmanagedType.BStr)] string value);
+    void put_PortablePassword([MarshalAs(UnmanagedType.BStr)] string value);
+    [return: MarshalAs(UnmanagedType.BStr)] string get_PortablePassword();
+    void put_PortableSalt([MarshalAs(UnmanagedType.BStr)] string value);
+    [return: MarshalAs(UnmanagedType.BStr)] string get_PortableSalt();
+    void put_BinaryPassword([MarshalAs(UnmanagedType.BStr)] string value);
+    [return: MarshalAs(UnmanagedType.BStr)] string get_BinaryPassword();
+    void put_BinarySalt([MarshalAs(UnmanagedType.BStr)] string value);
+    [return: MarshalAs(UnmanagedType.BStr)] string get_BinarySalt();
+    void ResetPassword();
+    void NotifyRedirectDeviceChange(IntPtr wParam, IntPtr lParam);
+    void SendKeys(int numKeys, ref short keyUpStates, ref int keyData);
+}
+
+[ComImport]
+[Guid("00000114-0000-0000-C000-000000000046")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IOleWindow
+{
+    [PreserveSig] int GetWindow(out IntPtr phwnd);
+    [PreserveSig] int ContextSensitiveHelp(int fEnterMode);
+}
+
 public class AxMsRdpClient10 : AxHost
 {
     public AxMsRdpClient10() : base("A0C63C30-F08D-4AB4-907C-34905D770C7D") { }
@@ -68,18 +96,196 @@ public class RdpForm : Form
     static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    const int WH_KEYBOARD_LL = 13;
+    const uint LLKHF_EXTENDED = 0x01;
+    const uint LLKHF_INJECTED = 0x10;
+    const uint LLKHF_ALTDOWN = 0x20;
+    const uint LLKHF_UP = 0x80;
+    const uint VK_F7 = 0x76;
+    const uint VK_RETURN = 0x0D;
+    const uint WM_KEYDOWN = 0x0100;
+    const uint WM_KEYUP = 0x0101;
+    const uint INPUT_KEYBOARD = 1;
+    const uint KEYEVENTF_SCANCODE = 0x0008;
+    const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+    const uint KEYEVENTF_KEYUP = 0x0002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KBDLLHOOKSTRUCT
+    {
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct INPUT
+    {
+        public uint type;
+        public InputUnion U;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    struct InputUnion
+    {
+        [FieldOffset(0)] public MOUSEINPUT mi;
+        [FieldOffset(0)] public KEYBDINPUT ki;
+        [FieldOffset(0)] public HARDWAREINPUT hi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
+    }
+
+    delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    static IntPtr _hook = IntPtr.Zero;
+    static LowLevelKeyboardProc _hookProc;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    [DllImport("user32.dll")]
+    static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    [DllImport("user32.dll")]
+    static extern short GetAsyncKeyState(int vKey);
 
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
         RegisterHotKey(this.Handle, HOTKEY_ID_FULL, MOD_NOREPEAT, 0x76);              // F7
-        RegisterHotKey(this.Handle, HOTKEY_ID_FULL + 1, MOD_ALT | MOD_NOREPEAT, 0x0D); // Alt+Enter
+        if (_hook == IntPtr.Zero)
+        {
+            _hookProc = HookProc;
+            _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _hookProc, IntPtr.Zero, 0);
+            if (_hook != IntPtr.Zero) RdpWindow.Log("KeyboardLL hook installed");
+            else RdpWindow.Log("KeyboardLL hook install failed err=" + Marshal.GetLastWin32Error());
+        }
     }
     protected override void OnHandleDestroyed(EventArgs e)
     {
         UnregisterHotKey(this.Handle, HOTKEY_ID_FULL);
-        UnregisterHotKey(this.Handle, HOTKEY_ID_FULL + 1);
+        if (_hook != IntPtr.Zero) { UnhookWindowsHookEx(_hook); _hook = IntPtr.Zero; }
         base.OnHandleDestroyed(e);
+    }
+
+    static IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode >= 0)
+        {
+            KBDLLHOOKSTRUCT kbd = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+            bool injected = (kbd.flags & LLKHF_INJECTED) != 0;
+            bool isF7 = kbd.vkCode == VK_F7;
+            if (isF7 && !injected && (kbd.flags & LLKHF_UP) == 0)
+            {
+                RdpWindow.Log("F7 hook invoke fullscreen toggle");
+                if (HotKeyFullScreen != null) HotKeyFullScreen();
+                return new IntPtr(1);
+            }
+        }
+        return CallNextHookEx(_hook, nCode, wParam, lParam);
+    }
+
+    public static void ReinstallHook()
+    {
+        if (_hook != IntPtr.Zero)
+        {
+            UnhookWindowsHookEx(_hook);
+            _hook = IntPtr.Zero;
+        }
+        _hookProc = HookProc;
+        _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _hookProc, IntPtr.Zero, 0);
+        RdpWindow.Log(_hook != IntPtr.Zero
+            ? "KeyboardLL hook re-installed to head of chain (after KeyboardHookMode=1)"
+            : "KeyboardLL hook re-install failed err=" + Marshal.GetLastWin32Error());
+    }
+
+    bool HookActive()
+    {
+        return this.Visible && (this.ContainsFocus || this.Focused);
+    }
+
+    public static object RdpObjectRef = null;
+
+    bool IsSystemComboKey(uint vk, uint flags)
+    {
+        bool altDown = (flags & LLKHF_ALTDOWN) != 0;
+        bool ctrlDown = (GetAsyncKeyState(0x11) & 0x8000) != 0;
+        if (vk == 0x5B || vk == 0x5C) { RdpWindow.Log("SystemCombo: Win vk=" + vk); return true; }
+        if (vk == 0x09) { return altDown; }
+        if (vk == 0x1B) { if (ctrlDown || altDown) { RdpWindow.Log("SystemCombo: Esc vk=" + vk); return true; } return false; }
+        if (vk == 0x20 && altDown) return true;
+        if (vk == 0x73 && altDown) return true;
+        if (vk == 0x5D) { RdpWindow.Log("SystemCombo: Apps"); return true; }
+        return false;
+    }
+
+    INPUT MakeInput(KBDLLHOOKSTRUCT kbd)
+    {
+        INPUT inp = new INPUT();
+        inp.type = INPUT_KEYBOARD;
+        inp.U.ki.wVk = (ushort)kbd.vkCode;
+        inp.U.ki.wScan = (ushort)kbd.scanCode;
+        inp.U.ki.dwFlags = KEYEVENTF_SCANCODE;
+        if ((kbd.flags & LLKHF_EXTENDED) != 0) inp.U.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+        if ((kbd.flags & LLKHF_UP) != 0) inp.U.ki.dwFlags |= KEYEVENTF_KEYUP;
+        return inp;
+    }
+
+    public static IMsRdpClientNonScriptable NonScriptable = null;
+    public static IntPtr RdpHwnd = IntPtr.Zero;
+
+    public static bool SendKeyRaw(KBDLLHOOKSTRUCT kbd)
+    {
+        if (NonScriptable == null) { RdpWindow.Log("SendKeyRaw: NonScriptable null"); return false; }
+        short[] keyUpStates = new short[1];
+        int[] keyData = new int[1];
+        keyUpStates[0] = ((kbd.flags & LLKHF_UP) != 0) ? (short)-1 : (short)0;
+        keyData[0] = (int)kbd.scanCode | (((kbd.flags & LLKHF_EXTENDED) != 0) ? 0x0100 : 0);
+        try { NonScriptable.SendKeys(1, ref keyUpStates[0], ref keyData[0]); return true; }
+        catch (Exception ex) { RdpWindow.Log("SendKeys vk=" + kbd.vkCode + " ex: " + ex.Message); return false; }
+    }
+
+    public static bool SendCtrlAltEnd()
+    {
+        if (NonScriptable == null) { RdpWindow.Log("SendCtrlAltEnd: NonScriptable null"); return false; }
+        short[] keyUpStates = { 0, 0, 0, -1, -1, -1 };
+        int[] keyData = { 0x1D, 0x38, 0x4F | 0x0100, 0x4F | 0x0100, 0x38, 0x1D };
+        try { NonScriptable.SendKeys(6, ref keyUpStates[0], ref keyData[0]); return true; }
+        catch (Exception ex) { RdpWindow.Log("SendCtrlAltEnd ex: " + ex.Message); return false; }
     }
 
     protected override void WndProc(ref Message m)
@@ -179,7 +385,6 @@ public class RdpWindow
     static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
-
     const int GWL_STYLE = -16;
     const int WS_CAPTION = 0x00C00000;
     const int WS_THICKFRAME = 0x00040000;
@@ -218,6 +423,7 @@ public class RdpWindow
     static int baseW, baseH;
     static int MinW = 400, MinH = 300;
     static int connectElapsed = 0;
+    static bool hookReorderDone = false;
     static bool isFullScreen = false;
     static Rectangle prevBounds;
     static FormWindowState prevState;
@@ -479,8 +685,7 @@ public class RdpWindow
 
         Button btnSecurity = MakeTextTitleBtn("\u6253\u5F00\u5B89\u5168\u9009\u9879", 120);
         btnSecurity.Click += delegate {
-            try { if (RdpObject != null) { dynamic rr = RdpObject; rr.SendKeys("^%{END}"); Log("Open security options"); } }
-            catch (Exception ex) { Log("Security failed: " + ex.Message); }
+            if (RdpObject != null) { if (RdpForm.SendCtrlAltEnd()) Log("Open security options"); }
         };
 
         btnTop = MakeTextTitleBtn("\u7F6E\u9876", 64);
@@ -522,12 +727,9 @@ public class RdpWindow
             DwmSetWindowAttribute(hnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, 4);
         };
 
-        // Alt+Enter toggles fullscreen
         MainForm.KeyPreview = true;
         MainForm.PreviewKeyDown += delegate(object s, PreviewKeyDownEventArgs e) {
             if (e.KeyCode == Keys.F7)
-            { e.IsInputKey = true; ToggleFullScreen(); }
-            else if (e.KeyCode == Keys.Enter && (Control.ModifierKeys & Keys.Alt) == Keys.Alt)
             { e.IsInputKey = true; ToggleFullScreen(); }
         };
 
@@ -579,8 +781,37 @@ public class RdpWindow
                 IMsRdpExtendedSettings ext = ocx as IMsRdpExtendedSettings;
                 if (ext == null) { Log("Get IMsRdpExtendedSettings failed"); return; }
                 RdpObject = ocx;
+                RdpForm.RdpObjectRef = ocx;
+                RdpForm.NonScriptable = ocx as IMsRdpClientNonScriptable;
+                if (RdpForm.NonScriptable == null) Log("Get IMsRdpClientNonScriptable failed");
+                else Log("Got IMsRdpClientNonScriptable");
+                try
+                {
+                    IOleWindow ow = ocx as IOleWindow;
+                    IntPtr ocxHwnd;
+                    if (ow != null && ow.GetWindow(out ocxHwnd) == 0 && ocxHwnd != IntPtr.Zero)
+                    {
+                        RdpForm.RdpHwnd = ocxHwnd;
+                        Log("Got Rdp Ocx hwnd=" + ocxHwnd.ToString("X8"));
+                    }
+                    else Log("Get Rdp Ocx window failed");
+                }
+                catch (Exception owEx) { Log("Get Rdp Ocx window exception: " + owEx.Message); }
                 dynamic r = ocx;
                 r.AdvancedSettings7.EnableCredSspSupport = true;
+                try
+                {
+                    object secured = r.SecuredSettings2;
+                    secured.GetType().InvokeMember("KeyboardHookMode", System.Reflection.BindingFlags.SetProperty, null, secured, new object[] { 1 });
+                    Log("KeyboardHookMode=1 set via SecuredSettings2");
+                }
+                catch (Exception hookEx) { Log("Set KeyboardHookMode via SecuredSettings2 failed: " + hookEx.Message); }
+                try
+                {
+                    r.AdvancedSettings7.EnableWindowsKey = 1;
+                    Log("EnableWindowsKey=1 set");
+                }
+                catch (Exception wnEx) { Log("Set EnableWindowsKey failed: " + wnEx.Message); }
                 r.Server = "localhost";
                 r.UserName = Environment.UserName;
                 r.AdvancedSettings9.AuthenticationLevel = 2;
@@ -666,12 +897,20 @@ public class RdpWindow
         catch (Exception ex) { Log("Toast failed: " + ex.Message); }
     }
 
-    static void SyncOverlayBounds()
+    static void SetOverlayBounds()
     {
         if (BlackScreen == null || !BlackScreen.Visible) return;
         if (HostPanel == null) return;
         if (BlackScreen.Owner != MainForm) BlackScreen.Owner = MainForm;
-        BlackScreen.DesktopBounds = HostPanel.RectangleToScreen(HostPanel.ClientRectangle);
+        Rectangle rc = HostPanel.RectangleToScreen(HostPanel.ClientRectangle);
+        if (rc.Width > 8 && rc.Height > 4) { rc.X += 4; rc.Width -= 8; rc.Height -= 4; }
+        BlackScreen.DesktopBounds = rc;
+    }
+
+    static void SyncOverlayBounds()
+    {
+        if (BlackScreen == null || !BlackScreen.Visible) return;
+        SetOverlayBounds();
     }
 
     static void StartConnectMonitor()
@@ -687,11 +926,13 @@ public class RdpWindow
                 int conn = r.Connected;
                 if (conn == 0)
                 {
+                    hookReorderDone = false;
                     connectElapsed++;
                     if (connectElapsed >= 1 && MainForm.Visible && BlackScreen != null && !BlackScreen.Visible)
                 {
                     if (BlackScreen.Owner != MainForm) BlackScreen.Owner = MainForm;
                     Rectangle rc = HostPanel.RectangleToScreen(HostPanel.ClientRectangle);
+                    if (rc.Width > 8 && rc.Height > 4) { rc.X += 4; rc.Width -= 8; rc.Height -= 4; }
                     BlackScreen.DesktopBounds = rc;
                     BlackScreen.Show();
                     BlackScreen.BringToFront();
@@ -699,7 +940,16 @@ public class RdpWindow
                 }
                     if (connectElapsed > 60) { Log("Lost connection (60s), disconnecting"); try { r.Disconnect(); } catch {} connectElapsed = 0; }
                 }
-                else { connectElapsed = 0; if (BlackScreen != null && BlackScreen.Visible) BlackScreen.Hide(); }
+                else
+                {
+                    connectElapsed = 0;
+                    if (BlackScreen != null && BlackScreen.Visible) BlackScreen.Hide();
+                    if (conn == 1 && !hookReorderDone)
+                    {
+                        hookReorderDone = true;
+                        RdpForm.ReinstallHook();
+                    }
+                }
             }
             catch { }
         };
