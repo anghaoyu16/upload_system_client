@@ -1,18 +1,32 @@
-# 作业上传系统
+<div align="center">
 
-一个基于 **Electron + Python Flask** 的作业提交与管理客户端，支持多后端自动切换、学习通聊天集成、AI 辅助答题、MMD 模型预览、内置浏览器与 Python 编辑器等功能。
+  <img src="icon.ico" alt="作业上传系统" width="200">
+
+  <h1>作业上传系统 · upload_system_client</h1>
+
+  <p>
+    <a href="https://github.com/anghaoyu16/upload_system_client/releases">
+      <img src="https://img.shields.io/badge/Download-Releases-1abc9c?style=for-the-badge&logo=github&logoColor=white" alt="Download">
+    </a>
+  </p>
+
+  <p>
+    作业上传系统 · upload_system_client - 局域网作业互传/素材下载 | 自动选择后端IP 优先局域网 | 超多个性化配置 | 内置浏览器 | 自定义浏览器UA | 内置可模仿超星学习通皮肤 | 适配超星学习通 | Windows桌面分身 | 学习通AI 辅助答题 | MMD 模型预览 | 命令行 与大量基于electron集成的功能
+  </p>
+
+</div>
 
 ---
-## 应用内截图
+## APP预留
 ### 首页
-<img src="markdown_img/home.png" alt="默认首页" width="600">
+<img src="markdown_img/home.png" alt="默认主题首页" width="600">
 
 ### 桌面分身
 <img src="markdown_img/a7.png" alt="桌面分身" width="600">
 <img src="markdown_img/a8.png" alt="桌面分身1" width="600">
 
 ### 个性化
-<img src="markdown_img/a1.png" alt="个性化" width="600">
+<img src="markdown_img/a1.png" alt="个性化配置页面" width="600">
 
 ### MMD/图片 与 AI配置项
 <img src="markdown_img/a2.png" alt="MMD/图片与AI配置菜单" width="600">
@@ -32,17 +46,42 @@
 
 ## 功能特性
 
-- **桌面分身**：基于系统原生 RDP 的独立子窗口，`F7` / `Alt+Enter` 全局快捷键全屏，支持自定义标题栏、边缘缩放、下拉置顶、断连无信号提示与一键重连
-- **多后端自动切换**：按 `backends` 列表自动探测可用服务器，优先局域网，失败后回退公网
-- **作业 / 素材树管理**：上传、下载、重命名、移动、权限设置、压缩包下载、帮我交作业
-- **学习通集成**：独立登录窗口、免登浏览、环信聊天、好友、窗口抖动、语音通话(实验性)
-- **AI 辅助答题**：基于 OpenAI 兼容接口的对话，支持页面元素工具调用(MMD 模型 / 浏览器 / 学习通)
-- **MMD 模型预览**：支持 PMX(稳定) / PMD(稳定) / GLB / GLTF / OBJ / VRM，可配置描边、光晕、贴图与动画
-- **内置浏览器**：多标签、历史记录、透明背景、自定义 UA
-- **Python 编辑器 / REPL**：内置运行、交互式命令行、多标签编辑
-- **个性化**：主题色、深色模式、自定义背景 / 启动动画 / 字体、毛玻璃、透明度、穿透点击
-- **实验性功能**：开发者控制面板、语音通话窗口
-- **彩蛋**：anghaoyu16://dance  与  anghaoyu16://windows
+- **作业与素材管理**：目录树管理、权限管理、压缩包批量下载、代交作业
+- **多后端自动切换**：按 `backends` 配置自动探测可用服务器，优先局域网，失败后自动回退公网
+- **AI 辅助答题**：基于 OpenAI 兼容接口的智能对话，可调用页面工具（MMD / 内置浏览器 / 学习通）
+- **学习通集成**：独立登录、免登录浏览、环信即时聊天、窗口抖动提示
+- **内置浏览器**：自定义 User-Agent、透明背景
+- **MMD 模型预览**：支持 PMX、PMD、GLB、GLTF、OBJ、VRM，可配置描边、光晕、贴图与动画
+- **Python 编辑器与 REPL**：内置 Python 运行环境
+- **个性化**：主题色、深色模式、自定义背景与启动动画、毛玻璃、点击穿透
+- **桌面分身**：基于系统原生 RDP 的独立子窗口，支持 F7 全局快捷键全屏
+- **彩蛋**：anghaoyu16://dance 与 anghaoyu16://windows
+
+## 所有快捷键列表
+<table align="center">
+  <thead>
+    <tr><th>快捷键</th><th>功能</th><th>快捷键范围</th><th>默认是否启用</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><kbd>F1</kbd></td><td>切换学习通皮肤</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F3</kbd></td><td>显示/隐藏 MMD（或图片）的 AI 小窗口</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F7</kbd></td><td>桌面分身窗口全屏</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F9</kbd></td><td>显示/隐藏学习通页面选项卡</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F10</kbd></td><td>显示/隐藏浏览器页面选项卡</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F11</kbd></td><td>切换/退出全屏</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>F12</kbd> / <kbd>Ctrl+Shift+I</kbd></td><td>打开开发者工具</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>放大整个 APP 页面</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>缩小整个 APP 页面</td><td>窗口级</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+Z</kbd></td><td>显示/关闭 APP 窗口</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+I</kbd></td><td>打开开发者工具窗口</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+X</kbd></td><td>启用/禁用窗口穿透点击</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+T</kbd></td><td>启用/禁用窗口置顶</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+M</kbd></td><td>切换深色/浅色主题</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+</kbd>+<kbd></kbd></td><td>增大窗口透明度</td><td>全局快捷键</td><td>是</td></tr>
+    <tr><td><kbd>Ctrl+Shift+Alt+</kbd>-<kbd></kbd></td><td>减小窗口透明度</td><td>全局快捷键</td><td>是</td></tr>
+  </tbody>
+</table>
+<p><em>快捷键范围说明：<b>窗口级</b>表示仅在 APP 窗口聚焦时生效；<b>全局快捷键</b>表示在任何窗口下均生效</em></p>
 
 ---
 
@@ -72,6 +111,7 @@
 
 可以在127.0.0.1:50 管理服务端用户信息与配置用户
 (tip:用户列表内 开发者用户可以在app内获得更多的管理权限，可以管理作业上交，上传，重命名，更改作业)
+(后续可能移除这个50端口，直接和 APP 的开发者人员功能合并)
 
 ### 第一步：克隆并安装依赖
 
@@ -155,7 +195,7 @@ copy config.example.json config.json   # Windows
 
 | 学号 | 班级 | 备注 | 序号 | 学习通账号 | 姓名 | 密码 |
 |------|------|------|------|-----------|------|------|
-| 2024001 | 计科1班 | - | 1 | 138xxxx | 张三 | abc123 |
+| 161616 | xxx班 | - | 1 | xxxxxxx | xxx | abc123 |
 
 ### 第四步：启动
 
@@ -191,9 +231,9 @@ npm start                          # 启动 Electron 窗口
 
 ```json
 {
-  "version": "1.4.0",
+  "version": "1.4.2",
   "download_url": "http://你的服务器/file/app/upload-system-setup.exe",
-  "release_notes": "本次更新内容..."
+  "release_notes": "本次更新内容...(这个可以随便写，因为最新版客户端不会展示这个字段)"
 }
 ```
 
@@ -257,7 +297,7 @@ npm start                          # 启动 Electron 窗口
 
 ---
 
-## 常见问题
+## 常见问题/解决方案
 
 **Q：启动报错 `No module named 'flask'`？**
 
@@ -271,13 +311,13 @@ pip install flask openpyxl werkzeug
 - 以管理员身份运行命令行
 - 如实在无法释放，可修改 `app.py` 末尾 `port=80` 为其他端口，并同步修改两个 `config.json` 中的地址
 
-**Q：客户端连不上服务器？**
+**Q：客户端一直显示"连不上服务器"？**
 
 - 检查根目录 `config.json` 中 `backends` 地址是否正确
 - 确认 Python 服务已启动（80 端口主服务、50 端口管理后台）
 - 防火墙是否放行了对应端口
 
-**Q：学习通显示"未找到您的学习通数据"？**
+**Q：学习通显示"服务器没用你的学习通信息"？**
 
 - 确认 Excel 已放到 `server_python/file/xxt/` 下
 - 确认 Excel 第 5/6/7 列分别是账号、姓名、密码（从第 2 行开始）
@@ -290,11 +330,6 @@ pip install flask openpyxl werkzeug
 - 测试版：放到 `{data_dir}/file/app_beta/`，并在「设置 → 常规」中开启「接收测试版本更新」
 - 客户端仅在对局域网后端连接时自动静默检查，公网后端需手动点「检查更新」
 
-**Q：语音通话为什么用不了？**
-
-- 通话为实验性功能，依赖 Agora RTC 与学习通 SSO 返回的 `imAccount`
-- 若学习通默认密码被修改，会弹出重新连接窗口，需输入最新密码
-- 目前 Agora 连接在某些网络环境下不可用，只能挂断或关闭
 
 ---
 
@@ -302,13 +337,15 @@ pip install flask openpyxl werkzeug
 
 | 层 | 技术 |
 |----|------|
-| 桌面客户端 | Electron |
-| 前端 | 原生 HTML / CSS / JS |
+| 桌面客户端 | Electron + PowerShell(C#)(RDP 子会话控件脚本) |
+| 前端 | 原生 HTML / CSS / JavaScript |
+| 桌面分身 | Windows RDP ActiveX（COM / P-Invoke）+ 键盘钩子（WH_KEYBOARD_LL） |
 | 后端 | Python Flask + openpyxl |
-| 3D 渲染 | three.js（MMDLoader / GLTFLoader / OBJLoader / EffectComposer） |
-| 即时通讯 | 环信 (Easemob) |
-| 音视频通话 | Agora RTC SDK (实验性) |
-| 第三方集成 | 超星学习通 |
+| 3D 渲染 | three.js（MMD / GLTF / OBJ / VRM Loader、EffectComposer） |
+| AI 对话 | OpenAI 兼容接口（可配置 Base URL） |
+| 第三方集成 | 超星学习通（皮肤模拟 / 模拟超星学习通客户端UA） |
+
+> 声明：项目内置的学习通界面为高仿模拟实现，**非直接复制官方 APP**，与学习通官方无任何关联，仅供学习与研究使用。
 
 ---
 
