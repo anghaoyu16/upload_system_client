@@ -17,7 +17,8 @@
 </div>
 
 ---
-## APP预留
+## APP 截图预览
+
 ### 首页
 <img src="markdown_img/home.png" alt="默认主题首页" width="600">
 
