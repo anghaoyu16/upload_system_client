@@ -925,7 +925,7 @@ if (!gotTheLock) {
             }
             const inInteractive = relY < 32 || (relY >= 40 && relY <= 220);
             devPanelWindow.setIgnoreMouseEvents(!inInteractive, inInteractive ? undefined : { forward: true });
-        }, 50);
+        }, 1000);
     }
 
     function createDevPanel() {
@@ -980,7 +980,7 @@ if (!gotTheLock) {
             height: 700,
             minWidth: 900,
             minHeight: 620,
-            show: shouldShow,
+            show: false,
             transparent: windowTransparent,
             roundedCorners: !windowTransparent,
             backgroundMaterial: windowTransparent ? 'none' : (acrylicEnabled ? 'acrylic' : 'none'),
@@ -995,6 +995,12 @@ if (!gotTheLock) {
             icon: path.join(__dirname, 'icon.ico')
         });
         mainWindow.loadFile('index.html');
+        mainWindow.once('ready-to-show', () => {
+            if (shouldShow) mainWindow.show();
+        });
+        setTimeout(() => {
+            if (shouldShow && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) mainWindow.show();
+        }, 100);
         mainWindow.setOpacity(windowOpacity);
         if (clickThroughEnabled) {
             mainWindow.setIgnoreMouseEvents(true, { forward: true });

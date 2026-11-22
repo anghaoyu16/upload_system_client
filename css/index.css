@@ -762,6 +762,16 @@ body.dark .avatar-popup {
   gap: 0.3rem;
 }
 
+/* 演示模式：模糊目录树名称与上传者姓名（学习通姓名由自带显示/隐藏控制，不干预） */
+body.demo-mode .tree-node-item .node-name-text {
+  filter: blur(6px);
+  -webkit-filter: blur(6px);
+}
+body.demo-mode .uploader-name {
+  filter: blur(6px);
+  -webkit-filter: blur(6px);
+}
+
 .readonly-badge {
   font-size: 0.7rem;
   color: #e17055;

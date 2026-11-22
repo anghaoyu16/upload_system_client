@@ -29,6 +29,11 @@
 
 </head>
 <body class="splash-active">
+<script>
+  try {
+    if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+  } catch (e) {}
+</script>
 
 <style>
 .splash-ring-fg { fill: none; stroke: #3b82f6; stroke-width: 4; stroke-linecap: round; }
@@ -954,6 +959,16 @@
               </div>
               <label class="switch">
                 <input type="checkbox" id="show-copy-homework-toggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div>
+                <div class="settings-label">演示模式</div>
+                <div class="settings-desc">自动模糊作业目录与素材库中文件夹/文件的名称，并隐藏真实姓名，适合投屏演示</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="demo-mode-toggle">
                 <span class="slider"></span>
               </label>
             </div>

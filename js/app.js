@@ -1735,7 +1735,7 @@
     } else {
       html += '<span class="toggle-icon" style="visibility:hidden;"><i class="fa-solid fa-caret-right"></i></span>';
     }
-    html += '<span class="node-name">' + (isDir ? '<i class="fa-solid fa-folder" style="font-size:0.85rem;"></i> ' : '<i class="fa-solid fa-file" style="font-size:0.85rem;"></i> ') + escapeHtml(node.name || node.path || '') + '</span>';
+    html += '<span class="node-name">' + (isDir ? '<i class="fa-solid fa-folder" style="font-size:0.85rem;"></i> ' : '<i class="fa-solid fa-file" style="font-size:0.85rem;"></i> ') + '<span class="node-name-text">' + escapeHtml(node.name || node.path || '') + '</span></span>';
     const isDev = userInfo && userInfo.is_developer;
     if (isDir && type === 'work' && isShallowPath(node.path)) {
       if (isDev) {
@@ -1747,7 +1747,7 @@
     }
     if (!isDir) {
       if (node.size) html += '<span class="file-size-badge">' + formatFileSize(node.size) + '</span>';
-      if (isDev && node.uploader) html += '<span class="uploader-badge">' + escapeHtml(node.uploader) + ' 上传</span>';
+      if (isDev && node.uploader) html += '<span class="uploader-badge"><span class="uploader-name">' + escapeHtml(node.uploader) + '</span> 上传</span>';
     }
     html += '<span class="actions">';
     if (isDir && type === 'work') {
@@ -2698,7 +2698,7 @@
         html += '<i class="fa-solid fa-file" style="color:var(--text-secondary);font-size:0.85rem;margin:0 6px;"></i>';
         html += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(f.name) + '</span>';
         html += '<span class="file-size" style="flex-shrink:0;">' + (f.size ? formatFileSize(f.size) : '') + '</span>';
-        html += '<span class="uploader-badge" style="flex-shrink:0;opacity:0.75;">' + escapeHtml(uploader) + ' 上传</span>';
+        html += '<span class="uploader-badge" style="flex-shrink:0;opacity:0.75;"><span class="uploader-name">' + escapeHtml(uploader) + '</span> 上传</span>';
         html += '</div>';
       }
       listEl.innerHTML = html;
@@ -5562,6 +5562,16 @@
       copyHwToggle.checked = localStorage.getItem('showCopyHomework') === 'true';
       copyHwToggle.addEventListener('change', function() {
         localStorage.setItem('showCopyHomework', copyHwToggle.checked ? 'true' : 'false');
+      });
+    }
+
+    var demoToggle = $('demo-mode-toggle');
+    if (demoToggle) {
+      demoToggle.checked = localStorage.getItem('demoMode') === 'true';
+      if (demoToggle.checked) document.body.classList.add('demo-mode');
+      demoToggle.addEventListener('change', function() {
+        localStorage.setItem('demoMode', demoToggle.checked ? 'true' : 'false');
+        document.body.classList.toggle('demo-mode', demoToggle.checked);
       });
     }
 
