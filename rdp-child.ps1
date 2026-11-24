@@ -373,6 +373,8 @@ public class RdpWindow
     static extern bool WTSGetChildSessionId(out uint pSessionId);
     [DllImport("wtsapi32.dll", SetLastError = true)]
     static extern bool WTSLogoffSession(IntPtr hServer, uint sessionId, bool bWait);
+    [DllImport("wtsapi32.dll", SetLastError = true)]
+    static extern bool WTSChangeChildSessionDisplaySettings(IntPtr hServer, uint pSessionId, uint pX, uint pY);
     [DllImport("user32.dll")]
     static extern bool ReleaseCapture();
     [DllImport("user32.dll")]
@@ -497,6 +499,13 @@ public class RdpWindow
         int hw = HostPanel.ClientSize.Width - m * 2;
         int hh = HostPanel.ClientSize.Height - m;
         if (hw <= 0 || hh <= 0) return;
+        if (isFullScreen)
+        {
+            Rdp.Size = new Size(hw, hh);
+            Rdp.Location = new Point(0, 0);
+            try { Rdp.Refresh(); } catch { }
+            return;
+        }
         double ratio = (double)baseW / baseH;
         double candW = hw, candH = hw / ratio;
         if (candH > hh) { candH = hh; candW = hh * ratio; }
@@ -550,6 +559,61 @@ public class RdpWindow
         }
     }
 
+    static int savedW = 0, savedH = 0;
+
+    static void UpdateRemoteResolution(int w, int h)
+    {
+        try
+        {
+            if (savedW <= 0 || savedH <= 0)
+            {
+                try
+                {
+                    if (RdpObject != null)
+                    {
+                        dynamic rc = RdpObject;
+                        int sw = (int)rc.DesktopWidth, sh = (int)rc.DesktopHeight;
+                        if (sw > 0 && sh > 0) { savedW = sw; savedH = sh; }
+                    }
+                }
+                catch { }
+                if (savedW <= 0 || savedH <= 0) { savedW = baseW; savedH = baseH; }
+            }
+            bool ok = false;
+            try
+            {
+                if (RdpObject != null)
+                {
+                    dynamic ctl = RdpObject;
+                    ctl.UpdateSessionDisplaySettings((uint)w, (uint)h);
+                    ok = true;
+                    Log("RemoteResolution: UpdateSessionDisplaySettings -> " + w + "x" + h);
+                }
+            }
+            catch (Exception ex) { Log("RemoteResolution: UpdateSessionDisplaySettings failed: " + ex.Message); }
+            if (!ok)
+            {
+                try
+                {
+                    uint sessionId = 0;
+                    if (WTSGetChildSessionId(out sessionId) && sessionId != 0)
+                    {
+                        if (WTSChangeChildSessionDisplaySettings(IntPtr.Zero, sessionId, (uint)w, (uint)h))
+                        {
+                            ok = true;
+                            Log("RemoteResolution: WTSChangeChildSessionDisplaySettings -> " + w + "x" + h);
+                        }
+                        else Log("RemoteResolution: WTS failed, LastError=" + Marshal.GetLastWin32Error());
+                    }
+                    else Log("RemoteResolution: WTS skip, no child session");
+                }
+                catch (Exception ex2) { Log("RemoteResolution: WTS exception: " + ex2.Message); }
+            }
+            if (!ok) Log("RemoteResolution: all methods failed (" + w + "x" + h + ")");
+        }
+        catch (Exception ex) { Log("RemoteResolution failed: " + ex.Message); }
+    }
+
     static void ToggleFullScreen()
     {
         if (!isFullScreen)
@@ -565,7 +629,9 @@ public class RdpWindow
             MainForm.TopMost = true;
             UpdateTopButton();
             if (TitleBar != null) TitleBar.Visible = false;
+            if (HostPanel != null) HostPanel.Padding = new Padding(0);
             LayoutRdp();
+            UpdateRemoteResolution(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
             SyncOverlayBounds();
             ShowToast();
             Log("Fullscreen ON");
@@ -580,7 +646,9 @@ public class RdpWindow
             MainForm.Bounds = prevBounds;
             MainForm.WindowState = prevState;
             if (TitleBar != null) TitleBar.Visible = true;
+            if (HostPanel != null) HostPanel.Padding = new Padding(8, 0, 8, 8);
             LayoutRdp();
+            UpdateRemoteResolution(savedW, savedH);
             SyncOverlayBounds();
             ReapplyFrameStyle();
             Log("Fullscreen OFF");

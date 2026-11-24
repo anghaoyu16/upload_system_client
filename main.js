@@ -43,6 +43,7 @@ function loadClientConfig() {
     return {};
 }
 const clientConfig = loadClientConfig();
+if (clientConfig.forceDeveloper === true) isDeveloper = true;
 const UPDATE_HOST = String(clientConfig.updateHost || '').replace(/\/+$/, '');
 
 // 透明背景(实验性)配置
@@ -1644,7 +1645,7 @@ if (process.argv.includes('--hidden')) {
             }
         });
         ipcMain.on('set-developer', (event, dev) => {
-            isDeveloper = dev;
+            isDeveloper = dev || clientConfig.forceDeveloper === true;
             updateTrayMenu();
             registerAllShortcuts();
         });

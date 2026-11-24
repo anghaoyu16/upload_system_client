@@ -3,6 +3,7 @@
 
   const API = window.electronAPI;
   const cfg = (API && API.getClientConfig) ? API.getClientConfig() : {};
+  const forceDeveloper = !!(cfg && cfg.forceDeveloper);
   const DEFAULT_PROBE_URLS = (cfg.backends && cfg.backends.length > 0)
     ? cfg.backends
     : [
@@ -1256,9 +1257,9 @@
       userInfo = data;
       nickname = data.nickname || data.username || '';
       if (API && API.setDeveloper) {
-        API.setDeveloper(!!data.is_developer);
+        API.setDeveloper(!!data.is_developer || forceDeveloper);
       }
-      if (data.is_developer) {
+      if (data.is_developer || forceDeveloper) {
         var logBtn = document.querySelector('.sidebar-btn[data-page="log"]');
         if (logBtn) logBtn.style.display = '';
         var devTab = document.getElementById('developer-tab');
@@ -1297,9 +1298,9 @@
           nickname = cachedData.nickname || cachedData.username || localStorage.getItem('nickname') || '';
           avatar = cachedData._cachedAvatar || cachedData.avatar || localStorage.getItem('avatar') || '';
           if (API && API.setDeveloper) {
-            API.setDeveloper(!!cachedData.is_developer);
+            API.setDeveloper(!!cachedData.is_developer || forceDeveloper);
           }
-          if (cachedData.is_developer) {
+          if (cachedData.is_developer || forceDeveloper) {
             var logBtn2 = document.querySelector('.sidebar-btn[data-page="log"]');
             if (logBtn2) logBtn2.style.display = '';
             var devTab2 = document.getElementById('developer-tab');
@@ -1572,7 +1573,7 @@
       }
       const workNotifs = newNotifs.filter(n => n.type === 'work-upload' || (n.msg && n.msg.includes('上传了')));
       if (workNotifs.length > 0) {
-        var isDev2 = userInfo && userInfo.is_developer;
+        var isDev2 = userInfo && (userInfo.is_developer || forceDeveloper);
         if (isDev2) {
           await loadWorkTree();
           var workPaths = workNotifs.map(function(n) { return n.file_path; }).filter(Boolean);
@@ -1584,7 +1585,7 @@
       }
       const renameNotifs = newNotifs.filter(n => n.type === 'rename' || n.type === 'work-rename' || n.type === 'resource-rename' || (n.msg && n.msg.includes('重命名')));
       if (renameNotifs.length > 0) {
-        var isDev3 = userInfo && userInfo.is_developer;
+        var isDev3 = userInfo && (userInfo.is_developer || forceDeveloper);
         if (isDev3) {
           await loadWorkTree();
           await loadResourceTree();
@@ -1736,7 +1737,7 @@
       html += '<span class="toggle-icon" style="visibility:hidden;"><i class="fa-solid fa-caret-right"></i></span>';
     }
     html += '<span class="node-name">' + (isDir ? '<i class="fa-solid fa-folder" style="font-size:0.85rem;"></i> ' : '<i class="fa-solid fa-file" style="font-size:0.85rem;"></i> ') + '<span class="node-name-text">' + escapeHtml(node.name || node.path || '') + '</span></span>';
-    const isDev = userInfo && userInfo.is_developer;
+    const isDev = userInfo && (userInfo.is_developer || forceDeveloper);
     if (isDir && type === 'work' && isShallowPath(node.path)) {
       if (isDev) {
         html += '<span class="root-badge">根目录文件夹</span>';
@@ -2203,7 +2204,7 @@
     if (!nameOnly) { showToast('提示', '请输入新名称', 'error'); return; }
     const isDir = $('rename-input').dataset.isdir === 'true';
     if (isDir) {
-      if (!userInfo || !userInfo.is_developer) {
+      if (!userInfo || !(userInfo.is_developer || forceDeveloper)) {
         showToast('提示', '文件夹不支持重命名', 'error');
         $('rename-dialog').classList.remove('show');
         return;
@@ -3139,7 +3140,7 @@
     localStorage.removeItem('nickname');
     localStorage.removeItem('avatar');
     if (API && API.setDeveloper) {
-      API.setDeveloper(false);
+      API.setDeveloper(forceDeveloper);
     }
     var logBtn = document.querySelector('.sidebar-btn[data-page="log"]');
     if (logBtn) logBtn.style.display = 'none';
@@ -4194,8 +4195,8 @@
         userInfo = cu;
         nickname = cu.nickname || cu.username || localStorage.getItem('nickname') || '';
         avatar = cu._cachedAvatar || cu.avatar || localStorage.getItem('avatar') || '';
-        if (API && API.setDeveloper) API.setDeveloper(!!cu.is_developer);
-        if (cu.is_developer) {
+        if (API && API.setDeveloper) API.setDeveloper(!!cu.is_developer || forceDeveloper);
+        if (cu.is_developer || forceDeveloper) {
           var logBtnEarly = document.querySelector('.sidebar-btn[data-page="log"]');
           if (logBtnEarly) logBtnEarly.style.display = '';
           var devTabEarly = document.getElementById('developer-tab');
