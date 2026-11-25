@@ -488,7 +488,10 @@
 
   function showLoginModal() {
     if (token) return;
-    $('login-modal').classList.add('show');
+    var modal = $('login-modal');
+    modal._shouldShow = true;
+    updateLoginModalVisibility();
+    if (!modal.classList.contains('show')) return;
     $('login-username').focus();
     isRegisterMode = false;
     $('login-modal-title').textContent = '登录';
@@ -497,6 +500,7 @@
   }
 
   function hideLoginModal() {
+    $('login-modal')._shouldShow = false;
     $('login-modal').classList.remove('show');
   }
 
@@ -783,6 +787,17 @@
     }
   }
 
+  function updateLoginModalVisibility() {
+    const modal = $('login-modal');
+    if (!modal) return;
+    const visiblePages = ['home', 'search', 'announcements'];
+    if (modal._shouldShow && visiblePages.includes(currentPage)) {
+      modal.classList.add('show');
+    } else {
+      modal.classList.remove('show');
+    }
+  }
+
   function switchPage(page) {
     var prevPage = currentPage;
     // 离开 mmd 页面时不再销毁模型，保留渲染状态
@@ -805,6 +820,7 @@
       b.classList.toggle('active', b.dataset.page === page);
     });
     updateNetworkOverlayVisibility();
+    updateLoginModalVisibility();
     if (_networkDeferred && ['home', 'search', 'announcements'].includes(page)) {
       _networkDeferred = false;
       $('network-overlay')._shouldShow = true;
