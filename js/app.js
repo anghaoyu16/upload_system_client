@@ -3690,6 +3690,58 @@
     }
   }
 
+  function initHomeSplitter() {
+    const splitter = $('home-splitter');
+    const page = $('page-home');
+    if (!splitter || !page) return;
+    const workCard = page.querySelector('.work-tree-card');
+    const resCard = page.querySelector('.resource-tree-card');
+    if (!workCard || !resCard) return;
+    var dragging = false;
+    var splitRatio = 0.5;
+
+    function applySplit() {
+      workCard.style.flex = splitRatio.toFixed(4) + ' 1 0';
+      resCard.style.flex = (1 - splitRatio).toFixed(4) + ' 1 0';
+    }
+
+    splitter.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      dragging = true;
+      splitter.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      var minH = Math.max(20, Math.round(page.clientHeight * 0.05));
+      var top = workCard.getBoundingClientRect().top;
+      var resBottom = resCard.getBoundingClientRect().bottom;
+      var stripH = splitter.offsetHeight || 12;
+      var avail = (resBottom - top) - stripH;
+      if (avail <= 0) return;
+      var h = e.clientY - top;
+      var maxH = avail - minH;
+      if (h < minH) h = minH;
+      if (h > maxH) h = maxH;
+      splitRatio = h / avail;
+      applySplit();
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (!dragging) return;
+      dragging = false;
+      splitter.classList.remove('dragging');
+      document.body.style.userSelect = '';
+    });
+
+    splitter.addEventListener('dblclick', function () {
+      splitRatio = 0.5;
+      applySplit();
+    });
+  }
+
   async function init() {
     if (localStorage.getItem('skipAnim') === 'true') {
       document.body.classList.add('no-anim');
@@ -4002,6 +4054,7 @@
 
     // 桌面分身控制面板：监听服务状态并初始化按钮（不再使用旧截图帧渲染）
     initRdpPanel();
+    initHomeSplitter();
     var rdpConnectBtn = $('rdp-connect-btn');
     var logoffBtn = $('rdp-logoff-btn');
     if (rdpConnectBtn) rdpConnectBtn.onclick = function () { if (API && API.startChildSession) API.startChildSession(); };

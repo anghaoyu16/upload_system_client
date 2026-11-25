@@ -342,6 +342,34 @@ public class RdpForm : Form
     }
 }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct RECT { public int Left, Top, Right, Bottom; }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DWM_THUMBNAIL_PROPERTIES
+{
+    public uint dwFlags;
+    public RECT rcDestination;
+    public RECT rcSource;
+    public byte opacity;
+    public bool fVisible;
+    public bool fSourceClientAreaOnly;
+}
+
+public class StretchOverlayForm : Form
+{
+    protected override bool ShowWithoutActivation { get { return true; } }
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            CreateParams cp = base.CreateParams;
+            cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE
+            return cp;
+        }
+    }
+}
+
 public class TransparentHost : Panel
 {
     const int WM_NCHITTEST = 0x0084;
@@ -387,6 +415,74 @@ public class RdpWindow
     static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+    [DllImport("dwmapi.dll")]
+    static extern int DwmRegisterThumbnail(IntPtr hwndDestination, IntPtr hwndSource, out IntPtr phThumbnailId);
+    [DllImport("dwmapi.dll")]
+    static extern int DwmUnregisterThumbnail(IntPtr hThumbnailId);
+    [DllImport("dwmapi.dll")]
+    static extern int DwmUpdateThumbnailProperties(IntPtr hThumbnailId, ref DWM_THUMBNAIL_PROPERTIES ptThumbnailProperties);
+    [DllImport("user32.dll")]
+    static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    static extern IntPtr SetCapture(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    static extern IntPtr SetActiveWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    static extern IntPtr SetFocus(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr SetWindowsHookEx(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    [DllImport("user32.dll")]
+    static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public int x;
+        public int y;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+    delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    const int WH_MOUSE_LL = 14;
+    const int WM_MOUSEMOVE = 0x0200;
+    const int WM_LBUTTONDOWN = 0x0201;
+    const int WM_LBUTTONUP = 0x0202;
+    const int WM_LBUTTONDBLCLK = 0x0203;
+    const int WM_RBUTTONDOWN = 0x0204;
+    const int WM_RBUTTONUP = 0x0205;
+    const int WM_RBUTTONDBLCLK = 0x0206;
+    const int WM_MBUTTONDOWN = 0x0207;
+    const int WM_MBUTTONUP = 0x0208;
+    const int WM_MBUTTONDBLCLK = 0x0209;
+    const int WM_MOUSEWHEEL = 0x020A;
+    const int WM_XBUTTONDOWN = 0x020B;
+    const int WM_XBUTTONUP = 0x020C;
+    const int WM_MOUSEHWHEEL = 0x020E;
+    const uint MK_LBUTTON = 0x0001;
+    const uint MK_RBUTTON = 0x0002;
+    const uint MK_MBUTTON = 0x0010;
+    const int MK_XBUTTON1 = 0x0020;
+    const int MK_XBUTTON2 = 0x0040;
+    const int XBUTTON1 = 0x0001;
+    const int XBUTTON2 = 0x0002;
+    const int MK_CONTROL = 0x0008;
+    const int MK_SHIFT = 0x0004;
+    const uint DWM_TNP_RECTDESTINATION = 0x00000001;
+    const uint DWM_TNP_RECTSOURCE = 0x00000002;
+    const uint DWM_TNP_OPACITY = 0x00000004;
+    const uint DWM_TNP_VISIBLE = 0x00000008;
+    const uint DWM_TNP_SOURCECLIENTAREAONLY = 0x00000010;
     const int GWL_STYLE = -16;
     const int WS_CAPTION = 0x00C00000;
     const int WS_THICKFRAME = 0x00040000;
@@ -421,6 +517,15 @@ public class RdpWindow
     static Button btnFull = null;
     static Button btnTop = null;
     static Form BlackScreen = null;
+    static Form StretchForm = null;
+    static IntPtr ThumbId = IntPtr.Zero;
+    static bool stretchActive = false;
+    static bool stretchSourceIsMainForm = false;
+    static IntPtr mouseHook = IntPtr.Zero;
+    static LowLevelMouseProc mouseHookProc = null;
+    static uint stretchButtons = 0;
+    static RECT stretchSrc = new RECT();
+    static RECT stretchDest = new RECT();
 
     static int baseW, baseH;
     static int MinW = 400, MinH = 300;
@@ -492,6 +597,15 @@ public class RdpWindow
         if (btnTop != null) btnTop.BackColor = MainForm.TopMost ? Color.FromArgb(70, 70, 78) : Color.FromArgb(18, 18, 22);
     }
 
+    static Size FitSize(int cw, int ch)
+    {
+        if (cw <= 0 || ch <= 0 || baseW <= 0 || baseH <= 0) return new Size(cw, ch);
+        double fratio = (double)baseW / baseH;
+        double fW = cw, fH = cw / fratio;
+        if (fH > ch) { fH = ch; fW = ch * fratio; }
+        return new Size(Math.Max(1, (int)fW), Math.Max(1, (int)fH));
+    }
+
     static void LayoutRdp()
     {
         if (HostPanel == null || Rdp == null || baseW <= 0 || baseH <= 0) return;
@@ -501,9 +615,24 @@ public class RdpWindow
         if (hw <= 0 || hh <= 0) return;
         if (isFullScreen)
         {
-            Rdp.Size = new Size(hw, hh);
-            Rdp.Location = new Point(0, 0);
+            Size fs = FitSize(hw, hh);
+            int frw = fs.Width, frh = fs.Height;
+            Log("Fullscreen fit host=" + hw + "x" + hh + " -> rdp=" + frw + "x" + frh);
+            Rdp.Size = new Size(frw, frh);
+            Rdp.Location = new Point((hw - frw) / 2, (hh - frh) / 2);
             try { Rdp.Refresh(); } catch { }
+            try
+            {
+                if (RdpObject != null)
+                {
+                    dynamic rdp = RdpObject;
+                    dynamic a = rdp.AdvancedSettings9;
+                    a.SmartSizing = false;
+                    a.SmartSizing = true;
+                    Log("Fullscreen SmartSizing re-toggled");
+                }
+            }
+            catch { }
             return;
         }
         double ratio = (double)baseW / baseH;
@@ -573,6 +702,7 @@ public class RdpWindow
                     {
                         dynamic rc = RdpObject;
                         int sw = (int)rc.DesktopWidth, sh = (int)rc.DesktopHeight;
+                        Log("RemoteResolution: current desktop=" + sw + "x" + sh);
                         if (sw > 0 && sh > 0) { savedW = sw; savedH = sh; }
                     }
                 }
@@ -585,7 +715,7 @@ public class RdpWindow
                 if (RdpObject != null)
                 {
                     dynamic ctl = RdpObject;
-                    ctl.UpdateSessionDisplaySettings((uint)w, (uint)h);
+                    ctl.UpdateSessionDisplaySettings((uint)w, (uint)h, 1);
                     ok = true;
                     Log("RemoteResolution: UpdateSessionDisplaySettings -> " + w + "x" + h);
                 }
@@ -614,8 +744,12 @@ public class RdpWindow
         catch (Exception ex) { Log("RemoteResolution failed: " + ex.Message); }
     }
 
+    static long lastFullToggleTick = 0;
     static void ToggleFullScreen()
     {
+        long now = DateTime.UtcNow.Ticks;
+        if (now - lastFullToggleTick < TimeSpan.TicksPerMillisecond * 250) return;
+        lastFullToggleTick = now;
         if (!isFullScreen)
         {
             prevBounds = MainForm.Bounds;
@@ -631,7 +765,6 @@ public class RdpWindow
             if (TitleBar != null) TitleBar.Visible = false;
             if (HostPanel != null) HostPanel.Padding = new Padding(0);
             LayoutRdp();
-            UpdateRemoteResolution(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
             SyncOverlayBounds();
             ShowToast();
             Log("Fullscreen ON");
@@ -648,11 +781,149 @@ public class RdpWindow
             if (TitleBar != null) TitleBar.Visible = true;
             if (HostPanel != null) HostPanel.Padding = new Padding(8, 0, 8, 8);
             LayoutRdp();
-            UpdateRemoteResolution(savedW, savedH);
             SyncOverlayBounds();
             ReapplyFrameStyle();
             Log("Fullscreen OFF");
         }
+    }
+
+    static void CreateStretch()
+    {
+        try
+        {
+            if (stretchActive && StretchForm != null) return;
+            IntPtr src = MainForm.Handle;
+            if (src == IntPtr.Zero) { Log("Stretch: no source hwnd"); return; }
+            if (Rdp == null) { Log("Stretch: Rdp null"); return; }
+            StretchForm = new StretchOverlayForm();
+            StretchForm.FormBorderStyle = FormBorderStyle.None;
+            StretchForm.ShowInTaskbar = false;
+            StretchForm.TopMost = true;
+            StretchForm.StartPosition = FormStartPosition.Manual;
+            StretchForm.BackColor = Color.Black;
+            StretchForm.DesktopBounds = Screen.PrimaryScreen.Bounds;
+            StretchForm.Show();
+            StretchForm.BringToFront();
+            stretchSourceIsMainForm = true;
+            try { Rdp.Size = new Size(baseW, baseH); Rdp.Location = new Point(0, 0); Rdp.Refresh(); } catch { }
+            ThumbId = IntPtr.Zero;
+            int hr = DwmRegisterThumbnail(StretchForm.Handle, src, out ThumbId);
+            if (hr != 0 || ThumbId == IntPtr.Zero) { Log("Stretch: register hr=" + hr); DestroyStretch(); return; }
+            RECT srcRc = new RECT();
+            RECT dstRc = new RECT();
+            srcRc.Right = Math.Max(1, baseW);
+            srcRc.Bottom = Math.Max(1, baseH);
+            GetClientRect(StretchForm.Handle, out dstRc);
+            stretchSrc = srcRc;
+            stretchDest = dstRc;
+            DWM_THUMBNAIL_PROPERTIES tp = new DWM_THUMBNAIL_PROPERTIES();
+            tp.dwFlags = DWM_TNP_RECTSOURCE | DWM_TNP_RECTDESTINATION | DWM_TNP_OPACITY | DWM_TNP_VISIBLE | DWM_TNP_SOURCECLIENTAREAONLY;
+            tp.rcSource = srcRc;
+            tp.rcDestination = dstRc;
+            tp.opacity = 255;
+            tp.fVisible = true;
+            tp.fSourceClientAreaOnly = true;
+            hr = DwmUpdateThumbnailProperties(ThumbId, ref tp);
+            if (hr != 0) { Log("Stretch: update hr=" + hr + " err=" + Marshal.GetLastWin32Error()); DestroyStretch(); return; }
+            stretchButtons = 0;
+            if (mouseHook == IntPtr.Zero)
+            {
+                if (mouseHookProc == null) mouseHookProc = StretchMouseHookProc;
+                mouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseHookProc, IntPtr.Zero, 0);
+                if (mouseHook == IntPtr.Zero) Log("Stretch: mouse hook failed err=" + Marshal.GetLastWin32Error());
+            }
+            stretchActive = true;
+            Log("Stretch ON src=" + src.ToString("X8") + " fromMain=" + stretchSourceIsMainForm + " " + srcRc.Right + "x" + srcRc.Bottom + "->" + dstRc.Right + "x" + dstRc.Bottom);
+        }
+        catch (Exception ex) { Log("CreateStretch ex: " + ex.Message); try { DestroyStretch(); } catch { } }
+    }
+
+    static void DestroyStretch()
+    {
+        try
+        {
+            if (mouseHook != IntPtr.Zero) { UnhookWindowsHookEx(mouseHook); mouseHook = IntPtr.Zero; }
+            if (ThumbId != IntPtr.Zero) { DwmUnregisterThumbnail(ThumbId); ThumbId = IntPtr.Zero; }
+            if (StretchForm != null && !StretchForm.IsDisposed)
+            {
+                try { StretchForm.Hide(); } catch { }
+                try { StretchForm.Close(); } catch { }
+            }
+            StretchForm = null;
+            stretchActive = false;
+            stretchSourceIsMainForm = false;
+            stretchButtons = 0;
+            if (!isFullScreen) { try { LayoutRdp(); } catch { } }
+            Log("Stretch OFF");
+        }
+        catch (Exception ex) { Log("DestroyStretch ex: " + ex.Message); }
+    }
+
+    static IntPtr StretchMouseHookProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode >= 0 && stretchActive && StretchForm != null)
+        {
+            IntPtr target = RdpForm.RdpHwnd;
+            if (target != IntPtr.Zero && stretchSrc.Right > stretchSrc.Left && stretchSrc.Bottom > stretchSrc.Top)
+            {
+                MSLLHOOKSTRUCT ms = (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
+                int msg = wParam.ToInt32();
+                Point local = StretchForm.PointToClient(new Point(ms.x, ms.y));
+                int dw = stretchDest.Right - stretchDest.Left;
+                int dh = stretchDest.Bottom - stretchDest.Top;
+                int sw = stretchSrc.Right - stretchSrc.Left;
+                int sh = stretchSrc.Bottom - stretchSrc.Top;
+                if (dw > 0 && dh > 0 && sw > 0 && sh > 0 && local.X >= 0 && local.Y >= 0 && local.X < dw && local.Y < dh)
+                {
+                    int tx = stretchSrc.Left + local.X * sw / dw;
+                    int ty = stretchSrc.Top + local.Y * sh / dh;
+                    int lp = (ty << 16) | (tx & 0xFFFF);
+                    int wp = (int)stretchButtons;
+                    bool consumed = true;
+                    if (msg == WM_MOUSEMOVE) { }
+                    else if (msg == WM_LBUTTONDOWN) { stretchButtons |= MK_LBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_LBUTTONUP) { stretchButtons &= (uint)~MK_LBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_RBUTTONDOWN) { stretchButtons |= MK_RBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_RBUTTONUP) { stretchButtons &= (uint)~MK_RBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_MBUTTONDOWN) { stretchButtons |= MK_MBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_MBUTTONUP) { stretchButtons &= (uint)~MK_MBUTTON; wp = (int)stretchButtons; }
+                    else if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONUP)
+                    {
+                        uint xb = ms.mouseData & 0xFFFF;
+                        uint bit = (xb == XBUTTON2) ? (uint)MK_XBUTTON2 : (uint)MK_XBUTTON1;
+                        if (msg == WM_XBUTTONDOWN) stretchButtons |= bit; else stretchButtons &= ~bit;
+                        wp = (int)(stretchButtons | ((xb & 0xFFFF) << 16));
+                    }
+                    else if (msg == WM_MOUSEWHEEL || msg == WM_MOUSEHWHEEL)
+                    {
+                        short delta = (short)((ms.mouseData >> 16) & 0xFFFF);
+                        wp = (int)stretchButtons | (delta << 16);
+                    }
+                    else consumed = false;
+                    if (consumed)
+                    {
+                        bool isDown = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_XBUTTONDOWN;
+                        bool isUp = msg == WM_LBUTTONUP || msg == WM_RBUTTONUP || msg == WM_MBUTTONUP || msg == WM_XBUTTONUP;
+                        if (isDown || msg == WM_MOUSEWHEEL || msg == WM_MOUSEHWHEEL)
+                        {
+                            try { MainForm.Activate(); } catch { }
+                            SetActiveWindow(MainForm.Handle);
+                            SetForegroundWindow(MainForm.Handle);
+                        }
+                        if (isDown)
+                        {
+                            SetCapture(target);
+                            SetFocus(target);
+                            System.Threading.Thread.Sleep(1);
+                        }
+                        SendMessage(target, (uint)msg, new IntPtr(wp), new IntPtr(lp));
+                        if (isUp && stretchButtons == 0) ReleaseCapture();
+                        return new IntPtr(1);
+                    }
+                }
+            }
+        }
+        return CallNextHookEx(mouseHook, nCode, wParam, lParam);
     }
 
     static Button MakeTitleBtn(string icon, Color hover)
@@ -808,7 +1079,10 @@ public class RdpWindow
         MainForm.Resize += delegate { DebounceTimer.Stop(); DebounceTimer.Start(); SyncOverlayBounds(); };
         MainForm.ResizeEnd += delegate { DebounceTimer.Stop(); RefreshRdp(); SyncOverlayBounds(); };
         MainForm.Move += delegate { SyncOverlayBounds(); };
-        MainForm.VisibleChanged += delegate { if (!MainForm.Visible && BlackScreen != null && BlackScreen.Visible) BlackScreen.Hide(); };
+        MainForm.VisibleChanged += delegate {
+            if (!MainForm.Visible && BlackScreen != null && BlackScreen.Visible) BlackScreen.Hide();
+            if (!MainForm.Visible && stretchActive) DestroyStretch();
+        };
         MainForm.SizeChanged += delegate { if (btnMax != null) btnMax.Text = isMaximized ? ICON_RESTORE : ICON_MAX; };
 
         HostPanel = new TransparentHost();
@@ -838,6 +1112,7 @@ public class RdpWindow
         MainForm.Controls.Add(TitleBar);
 
         MainForm.FormClosing += delegate(object sender, FormClosingEventArgs e) {
+            if (stretchActive) DestroyStretch();
             if (!isFullScreen && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; MainForm.Hide(); Log("Window hidden"); }
         };
 

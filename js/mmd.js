@@ -766,7 +766,7 @@ function renderModelList() {
       </div>
       <div class="mmd-model-card mmd-import-card" id="mmd-ai-only-card">
         <div class="mmd-card-icon"><i class="fa-solid fa-robot"></i></div>
-        <div class="mmd-card-label">只使用AI功能</div>
+        <div class="mmd-card-label">使用图片小窗口项目</div>
         <div class="mmd-card-hint">图片 / GIF 项目 + AI</div>
       </div>
       ${savedModels.map(m => `
