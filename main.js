@@ -2455,7 +2455,7 @@ if (process.argv.includes('--hidden')) {
 
         ipcMain.handle('select-file', async () => {
             const result = await dialog.showOpenDialog(mainWindow, {
-                properties: ['openFile', 'multiSelections']
+                properties: ['openFile']
             });
             if (result.canceled || !result.filePaths.length) return [];
             return result.filePaths.map(p => ({

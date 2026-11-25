@@ -1892,7 +1892,8 @@
   }
 
   function bindDragDrop(container, type) {
-    if (type !== 'work') return;
+    if (type !== 'work' && type !== 'resource') return;
+    if (type === 'resource' && !(userInfo && (userInfo.is_developer || forceDeveloper))) return;
     if (container._dragAbort) container._dragAbort.abort();
     container._dragAbort = new AbortController();
     const signal = { signal: container._dragAbort.signal };
@@ -1902,7 +1903,8 @@
       e.preventDefault();
       e.stopPropagation();
       const item = e.target.closest('.tree-node-item');
-      if (item && item.dataset.isdir === 'true' && !isShallowPath(item.dataset.path || '') && item.dataset.readonly !== '1') {
+      const dropAllowed = item && item.dataset.isdir === 'true' && item.dataset.readonly !== '1' && (type === 'resource' || !isShallowPath(item.dataset.path || ''));
+      if (dropAllowed) {
         dragTargetDir = item.dataset.path || '';
         item.style.background = 'var(--theme-bg)';
         item.style.outline = '2px dashed var(--theme)';
@@ -1936,17 +1938,22 @@
       var errors = new Map();
       var uploadedPaths = [];
       var fileArr = Array.from(files);
+      if (fileArr.length > 1) {
+        showToast('提示', '每次只能上传一个文件，多余的文件将被忽略', 'warning', 4000);
+        fileArr = fileArr.slice(0, 1);
+      }
       for (var fi = 0; fi < fileArr.length; fi++) {
         var file = fileArr[fi];
         try {
           var useXhr = file.size > 1048576;
           if (useXhr) beginUpload(file.name);
           if (useXhr) {
-            await uploadSingleFile(file, file.name, targetPath);
+            await uploadSingleFile(file, file.name, targetPath, type);
           } else {
             var formData = new FormData();
             formData.append('file', file);
             formData.append('path', targetPath);
+            formData.append('type', type);
             formData.append('token', token);
             var result = await apiFetch('/upload', { method: 'POST', body: formData });
             if (result && result.warning) {
@@ -2070,10 +2077,14 @@
     if (!API || !API.selectFile) {
       var input = document.createElement('input');
       input.type = 'file';
-      input.multiple = true;
+      input.multiple = false;
       input.onchange = async function(e) {
         var files = Array.from(e.target.files);
         if (!files.length) return;
+        if (files.length > 1) {
+          showToast('提示', '每次只能上传一个文件，多余的文件将被忽略', 'warning', 4000);
+          files = files.slice(0, 1);
+        }
         if (!isLanIP(getBackend())) {
           var oversized = files.filter(function(f) { return f.size > 16777216; });
           if (oversized.length > 0) {
@@ -2139,6 +2150,10 @@
     }
     var files = await API.selectFile();
     if (!files || !files.length) return;
+    if (files.length > 1) {
+      showToast('提示', '每次只能上传一个文件，多余的文件将被忽略', 'warning', 4000);
+      files = files.slice(0, 1);
+    }
     if (!isLanIP(getBackend())) {
       var oversized = files.filter(function(f) {
         var sz = f.size !== undefined ? f.size : (f.data ? (f.data.byteLength || f.data.length) : 0);
