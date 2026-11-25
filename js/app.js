@@ -57,8 +57,8 @@
   let fetchAbortController = new AbortController();
   let autoStart = localStorage.getItem('autoStart') === 'true';
   let appTitle = localStorage.getItem('appTitle') || '作业上传系统';
-  let appVersion = 'v1.4.2';
-  let appbetaVersion = '1.4.2_beta_1';
+  let appVersion = 'v1.4.3';
+  let appbetaVersion = '1.4.3_beta_1';
   let betaUpdateEnabled = localStorage.getItem('betaUpdateEnabled') === 'true';
   let downloadHistory = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
   let activeDownloadCount = 0;
