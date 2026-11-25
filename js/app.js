@@ -58,7 +58,7 @@
   let autoStart = localStorage.getItem('autoStart') === 'true';
   let appTitle = localStorage.getItem('appTitle') || '作业上传系统';
   let appVersion = 'v1.4.2';
-  let appbetaVersion = '1.4.2';
+  let appbetaVersion = '1.4.2_beta_1';
   let betaUpdateEnabled = localStorage.getItem('betaUpdateEnabled') === 'true';
   let downloadHistory = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
   let activeDownloadCount = 0;
@@ -3192,11 +3192,10 @@
 
   function updateVersionDisplay() {
     var pv = parseVersion(appbetaVersion);
-    if (pv.isBeta) {
-      $('current-version').textContent = 'v' + appbetaVersion;
-    } else {
-      $('current-version').textContent = appVersion;
-    }
+    var verText = pv.isBeta ? 'v' + appbetaVersion : appVersion;
+    $('current-version').textContent = verText;
+    var aboutVer = $('about-current-version');
+    if (aboutVer) aboutVer.textContent = verText;
   }
 
   function compareVersion(v1, v2) {
@@ -3694,6 +3693,13 @@
   async function init() {
     if (localStorage.getItem('skipAnim') === 'true') {
       document.body.classList.add('no-anim');
+    }
+    if (forceDeveloper) {
+      var fdLog = document.querySelector('.sidebar-btn[data-page="log"]');
+      if (fdLog) fdLog.style.display = '';
+      var fdDevTab = document.getElementById('developer-tab');
+      if (fdDevTab) fdDevTab.style.display = '';
+      initLogCapture();
     }
     // 抢先注册 IPC 监听器，防止 did-finish-load 在 await 期间触发而丢失
     if (API && API.onLoadSavedBackground) {
@@ -8189,6 +8195,8 @@
   function initLogCapture() {
     var logContainer = $('log-output');
     if (!logContainer) return;
+    if (logContainer._captureStarted) return;
+    logContainer._captureStarted = true;
     var origLog = console.log;
     var origWarn = console.warn;
     var origError = console.error;
