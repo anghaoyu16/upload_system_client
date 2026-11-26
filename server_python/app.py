@@ -1296,6 +1296,279 @@ def api_homework_copy():
         'new_paths': new_paths
     })
 
+# ---------- 作业提交统计 ----------
+CLASS_USER_XLSX = os.path.join(BASE_DIR, 'file', 'classuser', 'zn2501.xlsx')
+STATS_TMP_DIR = os.path.join(BASE_DIR, 'tmp_stats')
+
+
+def _dir_has_files(path):
+    for _root, _dirs, files in os.walk(path):
+        if files:
+            return True
+    return False
+
+
+def _build_folder_tree(path):
+    node = {'name': os.path.basename(path) or path, 'path': path, 'files': [], 'children': []}
+    try:
+        entries = os.listdir(path)
+    except OSError:
+        return node
+    for entry in sorted(entries):
+        full = os.path.join(path, entry)
+        if os.path.isfile(full):
+            node['files'].append(entry)
+        elif os.path.isdir(full) and _dir_has_files(full):
+            node['children'].append(_build_folder_tree(full))
+    return node
+
+
+def _read_class_users(filepath):
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    ws = wb.active
+    class_name = ''
+    skip_words = {'序号', '姓名', '学号', '编号', '班级'}
+    for rr in (1, 2):
+        for cc in range(1, 8):
+            v = str(ws.cell(row=rr, column=cc).value or '').strip()
+            if v and not v.isdigit() and v not in skip_words:
+                class_name = v
+                break
+        if class_name:
+            break
+    if not class_name:
+        class_name = str(ws['A3'].value or '').strip()
+    names, ids = [], []
+    row = 3
+    while True:
+        name = ws.cell(row=row, column=2).value
+        sid = ws.cell(row=row, column=3).value
+        if name is None or str(name).strip() == '':
+            break
+        names.append(str(name).strip())
+        ids.append(str(sid).strip() if sid is not None else '')
+        row += 1
+    return class_name, names, ids
+
+
+def _flatten_blocks(root):
+    blocks = [{'name': root['name'], 'node': root, 'depth': 1}]
+
+    def walk(node, depth):
+        for child in node['children']:
+            blocks.append({'name': child['name'], 'node': child, 'depth': depth})
+            walk(child, depth + 1)
+    walk(root, 2)
+    return blocks
+
+
+def _match_block_files(node, names):
+    submitted = set()
+    unmatched = []
+    for f in node.get('files', []):
+        hit = False
+        for i, nm in enumerate(names):
+            if nm and nm in f:
+                submitted.add(i)
+                hit = True
+        if not hit and f:
+            unmatched.append(f)
+    return submitted, unmatched
+
+
+def _generate_statistics_xlsx(out_path, class_name, names, ids, cols):
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Border, Side, Alignment, Font, PatternFill
+
+    fen = Font(name='黑体', size=11)
+    thin = Side(style='thin', color='000000')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal='center', vertical='center')
+    light_fills = ['FFD9EAD3', 'FFCFE2F3', 'FFFFF2CC', 'FFFCE5CD', 'FFE4DFEC', 'FFFFE4E1', 'FFD0ECE8']
+
+    wb = openpyxl.Workbook()
+    try:
+        wb._named_styles['Normal'].font = fen
+    except Exception:
+        pass
+    ws = wb.active
+    ws.title = '提交情况'
+    n = len(names)
+    total_hw = sum(1 for b in cols if b is not None and b['node'].get('files'))
+    base_cols = 3 + len(cols)
+    rate_col = base_cols + 1
+    total_cols = base_cols + 2
+
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+    c1 = ws.cell(row=1, column=1, value=class_name)
+    c1.font = Font(name='黑体', bold=True, size=14)
+    c1.alignment = center
+    for col in range(1, total_cols + 1):
+        ws.cell(row=1, column=col).border = border
+
+    for ci, label in {1: '序号', 2: '姓名', 3: '学号'}.items():
+        cell = ws.cell(row=2, column=ci, value=label)
+        cell.border = border
+        cell.alignment = center
+        cell.font = Font(name='黑体', bold=True)
+
+    for i, b in enumerate(cols):
+        ci = 4 + i
+        if b is None:
+            continue
+        cell = ws.cell(row=2, column=ci, value=b['name'])
+        cell.border = border
+        cell.alignment = center
+        cell.font = Font(name='黑体', bold=True)
+
+    fill_by_col = {}
+    run_fill = None
+    run_idx = 0
+    for i, b in enumerate(cols):
+        if b is None:
+            continue
+        if b['depth'] == 2:
+            run_fill = PatternFill(start_color=light_fills[run_idx % len(light_fills)], end_color=light_fills[run_idx % len(light_fills)], fill_type='solid')
+            run_idx += 1
+        if b['depth'] >= 2 and run_fill is not None:
+            fill_by_col[4 + i] = run_fill
+
+    hw_results = []
+    for b in cols:
+        if b is not None and b['node'].get('files'):
+            submitted, _um = _match_block_files(b['node'], names)
+            hw_results.append((b, submitted))
+        else:
+            hw_results.append((b, None))
+
+    for r, (i, nm, sid) in enumerate(zip(range(1, n + 1), names, ids)):
+        row = 3 + r
+        for ci in range(1, 4):
+            cell = ws.cell(row=row, column=ci, value=(i if ci == 1 else (nm if ci == 2 else sid)))
+            cell.border = border
+            cell.alignment = center
+            cell.font = fen
+        cnt = 0
+        for bi, (b, submitted) in enumerate(hw_results):
+            ci = 4 + bi
+            if b is None:
+                continue
+            cell = ws.cell(row=row, column=ci)
+            if submitted is not None:
+                if (i - 1) in submitted:
+                    cell.value = '√'
+                    cnt += 1
+                else:
+                    cell.value = '○'
+                cell.alignment = center
+                cell.font = fen
+            cell.border = border
+            if ci in fill_by_col:
+                cell.fill = fill_by_col[ci]
+        cc = ws.cell(row=row, column=base_cols, value='{}/{}'.format(cnt, total_hw))
+        cc.border = border
+        cc.alignment = center
+        cc.font = fen
+        cc.number_format = '@'
+        rc = ws.cell(row=row, column=rate_col)
+        if total_hw > 0:
+            rc.value = '=COUNTIF({}:{},"√")/{}'.format(get_column_letter(4) + str(row), get_column_letter(3 + len(cols)) + str(row), total_hw)
+            rc.number_format = '0.0%'
+        rc.border = border
+        rc.alignment = center
+        rc.font = fen
+    for ci, fl in fill_by_col.items():
+        ws.cell(row=2, column=ci).fill = fl
+    for ci, label in {base_cols: '完成数量', rate_col: '完成率'}.items():
+        cell = ws.cell(row=2, column=ci, value=label)
+        cell.border = border
+        cell.alignment = center
+        cell.font = Font(name='黑体', bold=True)
+
+    def disp_width(text):
+        if text is None:
+            return 0
+        s = str(text)
+        if s.startswith('='):
+            return 0
+        return sum(2 if ord(ch) > 127 else 1 for ch in s)
+
+    for ci in range(1, total_cols + 1):
+        mx = 0
+        for rr in range(2, 3 + n):
+            v = ws.cell(row=rr, column=ci).value
+            if v is not None:
+                mx = max(mx, disp_width(v))
+        ws.column_dimensions[get_column_letter(ci)].width = mx + 4
+
+    wb.save(out_path)
+
+
+@app.route('/api/homework/statistics', methods=['POST'])
+def api_homework_statistics():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not validate_token(token):
+        return jsonify({'error': '未登录'}), 401
+    data = request.get_json() or {}
+    path = data.get('path', '')
+    file_type = data.get('type', 'work')
+    if not path:
+        return jsonify({'error': '路径缺失'}), 400
+    if '..' in path:
+        return jsonify({'error': '非法路径'}), 400
+    base_dir = _get_base_dir(file_type)
+    target = os.path.join(base_dir, path)
+    if not is_safe_path(base_dir, target):
+        return jsonify({'error': '非法路径'}), 403
+    if not os.path.isdir(target):
+        return jsonify({'error': '目录不存在'}), 404
+    if not os.path.exists(CLASS_USER_XLSX):
+        return jsonify({'error': '班级名单文件不存在'}), 500
+    try:
+        class_name, names, ids = _read_class_users(CLASS_USER_XLSX)
+        root = _build_folder_tree(target)
+        cols = _flatten_blocks(root)
+        unmatched = []
+        for b in cols:
+            if b is not None and b['node'].get('files'):
+                _sub, _um = _match_block_files(b['node'], names)
+                for f in _um:
+                    if f not in unmatched:
+                        unmatched.append(f)
+        if not names:
+            return jsonify({'error': '班级名单为空'}), 500
+        dir_name = os.path.basename(target) or '作业'
+        fname = '作业提交统计_{}_{}.xlsx'.format(dir_name, int(time.time()))
+        out_path = os.path.join(STATS_TMP_DIR, fname)
+        if not os.path.isdir(STATS_TMP_DIR):
+            os.makedirs(STATS_TMP_DIR, exist_ok=True)
+        _generate_statistics_xlsx(out_path, class_name, names, ids, cols)
+        try:
+            cutoff = time.time() - 3600
+            for old in os.listdir(STATS_TMP_DIR):
+                op = os.path.join(STATS_TMP_DIR, old)
+                if os.path.isfile(op) and os.path.getmtime(op) < cutoff:
+                    os.remove(op)
+        except OSError:
+            pass
+        return jsonify({'success': True, 'filename': fname, 'unmatched': unmatched})
+    except Exception as e:
+        return jsonify({'error': '统计失败: ' + str(e)}), 500
+
+
+@app.route('/api/homework/statistics/download')
+def api_homework_statistics_download():
+    token = request.args.get('token', '')
+    if not validate_token(token):
+        return jsonify({'error': '未登录'}), 401
+    filename = request.args.get('filename', '')
+    if not filename or filename != os.path.basename(filename):
+        return jsonify({'error': '非法文件名'}), 400
+    full = os.path.join(STATS_TMP_DIR, filename)
+    if not is_safe_path(STATS_TMP_DIR, full) or not os.path.isfile(full):
+        return jsonify({'error': '文件不存在'}), 404
+    return send_file(full, as_attachment=True, download_name=filename)
+
 if __name__ == '__main__':
     print("启动上传系统，端口 80")
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)

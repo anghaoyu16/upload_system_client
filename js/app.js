@@ -1776,6 +1776,7 @@
           html += '<button class="upload-btn" data-action="set-permission" data-path="' + escapeHtml(node.path || node.name || '') + '" data-current-perm="' + (node.readonly ? 'ro' : 'rw') + '" style="background:#e67e22;"><i class="fa-solid fa-lock"></i> ' + (node.readonly ? '改可读写' : '改为只读') + '</button>';
         }
         html += '<button class="upload-btn" data-action="download-zip" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#9b59b6;"><i class="fa-solid fa-file-zipper"></i> 下载压缩包</button>';
+        html += '<button class="upload-btn" data-action="homework-statistics" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-file-contract"></i> 统计提交情况</button>';
         if (depth >= 2 && !node.readonly && localStorage.getItem('showCopyHomework') === 'true') {
           html += '<button class="upload-btn" data-action="copy-homework" data-path="' + escapeHtml(node.path || node.name || '') + '" style="background:#27ae60;"><i class="fa-solid fa-wand-magic-sparkles"></i> 帮我交作业</button>';
         }
@@ -1885,6 +1886,7 @@
         else if (action === 'new-folder') handleNewFolder(path, type);
         else if (action === 'set-permission') handleSetPermission(path, type, btn.dataset.currentPerm || 'rw');
         else if (action === 'download-zip') handleDownloadZip(path, type);
+        else if (action === 'homework-statistics') handleHomeworkStatistics(path, type);
         else if (action === 'copy-homework') handleCopyHomework(path, type);
         else if (action === 'delete-own') handleDeleteOwn(path, type);
       });
@@ -2337,10 +2339,11 @@
     }
   }
 
-  function showConfirm(title, message) {
+  function showConfirm(title, message, confirmText) {
     return new Promise(function(resolve) {
       $('generic-dialog-title').textContent = title;
       $('generic-dialog-msg').textContent = message;
+      $('generic-dialog-confirm').textContent = confirmText || '确定';
       $('generic-dialog-input').style.display = 'none';
       $('generic-dialog-cancel').style.display = '';
       $('generic-dialog').classList.add('show');
@@ -2671,6 +2674,42 @@
       activeDownloadNames = activeDownloadNames.filter(n => n !== zipName);
       updateDownloadBadge();
       renderDownloadList();
+    }
+  }
+
+  async function handleHomeworkStatistics(path, type) {
+    if (!token || !userInfo) { showToast('提示', '请先登录', 'error'); return; }
+    const dirName = path.split('/').pop() || 'root';
+    const ok = await showConfirm('统计提交情况', '统计 "' + dirName + '" 的作业提交情况？\n(将读取班级名单并递归统计该目录下所有作业)');
+    if (!ok) return;
+    showToast('正在统计提交情况，请稍候...', '', 'info', 5000);
+    setGlobalProgress(true);
+    try {
+      const data = await apiFetch('/api/homework/statistics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: path, type: type }) });
+      if (!data) throw new Error('统计失败');
+      const unmatched = data.unmatched || [];
+      if (unmatched.length > 0) {
+        await showConfirm('存在无法匹配姓名的文件', '以下文件无法匹配到班级名单中的真实姓名，已跳过不计入统计：\n\n' + unmatched.slice(0, 10).join('\n') + (unmatched.length > 10 ? '\n\n...等共 ' + unmatched.length + ' 个文件' : ''), '知道了');
+      }
+      const downloadOk = await showConfirm('统计完成', '统计完成，是否下载Excel表格?', '下载');
+      if (!downloadOk) return;
+      const fname = data.filename || (dirName + '_提交情况统计.xlsx');
+      const downloadUrl = data.download_url || (getBackend() + '/api/homework/statistics/download?filename=' + encodeURIComponent(fname) + '&token=' + encodeURIComponent(token));
+      if (API && API.downloadFile) {
+        const result = await API.downloadFile(downloadUrl, fname, token);
+        if (result && result.canceled) { return; }
+        if (result && result.error) { throw new Error(result.error); }
+        showToast('下载成功', fname, 'success');
+      } else {
+        const a = document.createElement('a');
+        a.href = downloadUrl; a.download = fname;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        showToast('下载成功', fname, 'success');
+      }
+    } catch (e) {
+      showToast('统计失败', e.message, 'error', 5000, true);
+    } finally {
+      setGlobalProgress(false);
     }
   }
 
@@ -7052,7 +7091,7 @@
           devId: devId,
           device: 'windows',
           apiVersion: 230,
-          clientVersion: '1.4.2'
+          clientVersion: '1.4.5'
         },
         channelName: channelName,
         msgType: 'rtcCallWithAgora'
