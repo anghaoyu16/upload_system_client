@@ -1297,7 +1297,8 @@ def api_homework_copy():
     })
 
 # ---------- 作业提交统计 ----------
-CLASS_USER_XLSX = os.path.join(BASE_DIR, 'file', 'classuser', 'zn2501.xlsx')
+_classuser_name = _server_cfg.get('classuser_excel_filename', '')
+CLASS_USER_XLSX = os.path.join(BASE_DIR, 'file', 'classuser', _classuser_name) if _classuser_name else ''
 STATS_TMP_DIR = os.path.join(BASE_DIR, 'tmp_stats')
 
 
@@ -1472,8 +1473,8 @@ def _generate_statistics_xlsx(out_path, class_name, names, ids, cols):
         cc.number_format = '@'
         rc = ws.cell(row=row, column=rate_col)
         if total_hw > 0:
-            rc.value = '=COUNTIF({}:{},"√")/{}'.format(get_column_letter(4) + str(row), get_column_letter(3 + len(cols)) + str(row), total_hw)
-            rc.number_format = '0.0%'
+            rc.value = round(cnt / total_hw * 100, 2)
+            rc.number_format = '0.00"%"'
         rc.border = border
         rc.alignment = center
         rc.font = fen
@@ -1522,8 +1523,8 @@ def api_homework_statistics():
         return jsonify({'error': '非法路径'}), 403
     if not os.path.isdir(target):
         return jsonify({'error': '目录不存在'}), 404
-    if not os.path.exists(CLASS_USER_XLSX):
-        return jsonify({'error': '班级名单文件不存在'}), 500
+    if not CLASS_USER_XLSX or not os.path.exists(CLASS_USER_XLSX):
+        return jsonify({'error': '班级名单文件不存在，请在 config.json 中配置 classuser_excel_filename'}), 500
     try:
         class_name, names, ids = _read_class_users(CLASS_USER_XLSX)
         root = _build_folder_tree(target)

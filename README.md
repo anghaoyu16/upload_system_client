@@ -182,7 +182,7 @@ copy config.example.json config.json   # Windows
 
 #### 1. 班级名单（作业统计用）
 
-“统计提交情况”功能会读取班级名单，用于按真实姓名匹配作业文件并生成统计 Excel。将班级名单放到 `server_python/file/classuser/`，文件名固定为 `zn2501.xlsx`（对应代码中的 `CLASS_USER_XLSX`）。
+“统计提交情况”功能会读取班级名单，用于按真实姓名匹配作业文件并生成统计 Excel。将班级名单放到 `server_python/file/classuser/`，文件名在 `server_python/config.json` 的 `classuser_excel_filename` 中设置。
 
 | 位置 | 内容 |
 |------|------|
@@ -247,6 +247,7 @@ npm start                          # 启动 Electron 窗口
 |------|------|------|
 | `backends` | string[] | 后端地址列表，客户端按顺序探测，连上第一个可用的 |
 | `xxt_excel_filename` | string | 学习通班级 Excel 文件名，放在 `server_python/file/xxt/` 下 |
+| `classuser_excel_filename` | string | 班级名单 Excel 文件名（作业统计用），放在 `server_python/file/classuser/` 下 |
 | `xxt_default_password` | string | Excel 中某行未填密码时使用的默认密码 |
 | `update_version_url` | string | `/api/check_update` 回退使用的版本 JSON 地址 |
 | `data_dir` | string | 数据存储根目录。`"./data"` 相对启动目录；也可填绝对路径如 `D:\server_data` |
