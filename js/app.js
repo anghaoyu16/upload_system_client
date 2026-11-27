@@ -3872,6 +3872,11 @@
           }
           return;
         }
+        if (/^anghaoyu16:\/\/games\/?/i.test(url)) {
+          switchPage('games');
+          showToast('小游戏', '已跳转到小游戏标签页', 'info', 5000);
+          return;
+        }
         showToast('协议唤醒', '收到协议链接: ' + url, 'info', 5000);
       });
     }
@@ -5892,6 +5897,1233 @@
       });
     }
 
+    var openGamesBtn = $('open-games-btn');
+    if (openGamesBtn) {
+      openGamesBtn.addEventListener('click', function() {
+        switchPage('games');
+      });
+    }
+
+    // ========== 2048 小游戏 ==========
+    var g2048Grid = [];
+    var g2048Score = 0;
+    var g2048Over = false;
+    var g2048Inited = false;
+    var g2048GodOn = false;
+    var g2048Sub = '';
+    var g2048Sel = null;
+    var g2048AddVal = 2;
+    var g2048Values = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+    var g2048Moves = null;
+    var g2048NewTile = null;
+
+    function g2048Init() {
+      if (g2048Inited) return;
+      g2048Inited = true;
+      var entry = $('game-2048-entry');
+      var gameView = $('game-2048-view');
+      var homeView = $('games-home-view');
+      var board = $('game-2048-board');
+      if (!entry || !gameView || !homeView || !board) return;
+
+      entry.addEventListener('click', function() {
+        homeView.style.display = 'none';
+        gameView.style.display = 'flex';
+        gameView.classList.add('game-2048-open');
+        g2048Start();
+        g2048BuildScale();
+        g2048FitView();
+      });
+
+      var backBtn = $('game-2048-back');
+      if (backBtn) backBtn.addEventListener('click', function() {
+        gameView.style.display = 'none';
+        gameView.classList.remove('game-2048-open');
+        homeView.style.display = '';
+      });
+
+      var restartBtn = $('game-2048-restart');
+      if (restartBtn) restartBtn.addEventListener('click', g2048Start);
+
+      var helpBtn = $('game-2048-help');
+      if (helpBtn) helpBtn.addEventListener('click', g2048ShowHelp);
+
+      var godBtn = $('game-2048-god');
+      if (godBtn) godBtn.addEventListener('click', g2048ToggleGod);
+
+      var toolbar = $('game-2048-toolbar');
+      if (toolbar) toolbar.addEventListener('click', function(e) {
+        var b = e.target.closest('button');
+        if (!b) return;
+        if (b.id === 'game-2048-tool-cancel') g2048ToggleGod();
+        else if (b.id === 'game-2048-tool-del') g2048SetSub('del');
+        else if (b.id === 'game-2048-tool-add') g2048SetSub('add');
+      });
+
+      var actions = $('game-2048-actions');
+      if (actions) actions.addEventListener('click', function(e) {
+        var b = e.target.closest('button');
+        if (!b || !g2048GodOn) return;
+        var act = b.getAttribute('data-act');
+        if (!act) return;
+        if (g2048Sub === 'del') {
+          if (act === 'back') g2048ToggleGod();
+          else if (act === 'delete') g2048DeleteTile();
+        } else if (g2048Sub === 'add') {
+          if (act === 'back') g2048ToggleGod();
+          else if (act === 'value') { g2048AddVal = parseInt(b.getAttribute('data-value'), 10) || 2; g2048SyncGodUI(); g2048RefreshSelUI(); }
+          else if (act === 'custom') {
+            showPrompt('自定义方块数值', '请输入要放置的方块数值（仅支持 2,4,8,16,32... 等2的幂次方）：', '').then(function(res) {
+              if (res === null || res === undefined) return;
+              var n = Number(String(res).trim());
+              if (isFinite(n) && n > 0 && Math.log2(n) === Math.floor(Math.log2(n))) {
+                g2048AddVal = n;
+                g2048SyncGodUI();
+                g2048RefreshSelUI();
+              } else {
+                showToast('提示', '请输入 2 的幂次方，例如 2,4,8,16,32', 'warning');
+              }
+            });
+          }
+          else if (act === 'place') g2048PlaceTile();
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (gameView.style.display === 'none') return;
+        if (g2048GodOn && e.key === 'Escape') {
+          g2048ToggleGod();
+          return;
+        }
+        var dir = null;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') dir = 0;
+        else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dir = 1;
+        else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') dir = 2;
+        else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') dir = 3;
+        if (dir !== null) {
+          e.preventDefault();
+          g2048Move(dir);
+        }
+      });
+
+      var startX = 0, startY = 0, tracking = false;
+      gameView.addEventListener('touchstart', function(e) {
+        if (e.target.closest('.game-2048-topbar')) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        tracking = true;
+      }, { passive: true });
+      gameView.addEventListener('touchend', function(e) {
+        if (!tracking) return;
+        tracking = false;
+        var dx = e.changedTouches[0].clientX - startX;
+        var dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return;
+        var dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 0) : (dy > 0 ? 3 : 2);
+        g2048Move(dir);
+      });
+
+      board.addEventListener('click', function(e) {
+        if (!g2048GodOn) return;
+        var cell = e.target.closest('.g2048-cell');
+        if (!cell) return;
+        var r = parseInt(cell.getAttribute('data-r'), 10);
+        var c = parseInt(cell.getAttribute('data-c'), 10);
+        if (isNaN(r) || isNaN(c)) return;
+        if (g2048Sub === 'del') {
+          g2048SelectCell(g2048Grid[r][c] ? [r, c] : null);
+        } else if (g2048Sub === 'add') {
+          g2048SelectCell(!g2048Grid[r][c] ? [r, c] : null);
+        }
+      });
+
+      board.addEventListener('dblclick', function(e) {
+        if (!g2048GodOn) return;
+        var cell = e.target.closest('.g2048-cell');
+        if (!cell) return;
+        var r = parseInt(cell.getAttribute('data-r'), 10);
+        var c = parseInt(cell.getAttribute('data-c'), 10);
+        if (isNaN(r) || isNaN(c)) return;
+        if (g2048Sub === 'del' && g2048Grid[r][c]) {
+          g2048Sel = [r, c];
+          g2048DeleteTile();
+        } else if (g2048Sub === 'add' && !g2048Grid[r][c]) {
+          g2048Sel = [r, c];
+          g2048PlaceTile();
+        }
+      });
+
+      g2048Start();
+      window.addEventListener('resize', function() {
+        var view = $('game-2048-view');
+        if (view && view.style.display !== 'none') g2048FitView();
+      });
+    }
+
+    function g2048Start() {
+      g2048Grid = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+      g2048Score = 0;
+      g2048Over = false;
+      g2048GodOn = false;
+      g2048Sub = '';
+      g2048Sel = null;
+      g2048AddVal = 2;
+      g2048Moves = null;
+      g2048NewTile = null;
+      g2048SyncGodUI();
+      g2048AddTile();
+      g2048AddTile();
+      g2048Render();
+    }
+
+    function g2048AddTile() {
+      var empty = [];
+      for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+        if (!g2048Grid[r][c]) empty.push([r, c]);
+      }
+      if (!empty.length) return null;
+      var p = empty[Math.floor(Math.random() * empty.length)];
+      g2048Grid[p[0]][p[1]] = Math.random() < 0.9 ? 2 : 4;
+      return p;
+    }
+
+    function g2048Move(dir) {
+      if (g2048Over) return;
+      var moved = false;
+      var newGrid = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+      var moves = [];
+      for (var i = 0; i < 4; i++) {
+        var tiles = [];
+        for (var j = 0; j < 4; j++) {
+          var r, c;
+          if (dir === 0) { r = i; c = j; }
+          else if (dir === 1) { r = i; c = 3 - j; }
+          else if (dir === 2) { r = j; c = i; }
+          else { r = 3 - j; c = i; }
+          if (g2048Grid[r][c]) tiles.push({ r: r, c: c, v: g2048Grid[r][c] });
+        }
+        for (var k = 0, pos = 0; k < tiles.length; k++) {
+          var tr, tc;
+          if (dir === 0) { tr = i; tc = pos; }
+          else if (dir === 1) { tr = i; tc = 3 - pos; }
+          else if (dir === 2) { tr = pos; tc = i; }
+          else { tr = 3 - pos; tc = i; }
+          if (k + 1 < tiles.length && tiles[k].v === tiles[k + 1].v) {
+            if (tiles[k].r !== tr || tiles[k].c !== tc || tiles[k + 1].r !== tr || tiles[k + 1].c !== tc) moved = true;
+            moves.push({ fr: tiles[k].r, fc: tiles[k].c, tr: tr, tc: tc });
+            moves.push({ fr: tiles[k + 1].r, fc: tiles[k + 1].c, tr: tr, tc: tc });
+            newGrid[tr][tc] = tiles[k].v * 2;
+            g2048Score += tiles[k].v * 2;
+            pos++;
+            k++;
+          } else {
+            if (tiles[k].r !== tr || tiles[k].c !== tc) moved = true;
+            moves.push({ fr: tiles[k].r, fc: tiles[k].c, tr: tr, tc: tc });
+            newGrid[tr][tc] = tiles[k].v;
+            pos++;
+          }
+        }
+      }
+      if (!moved) return;
+      g2048Grid = newGrid;
+      g2048Moves = moves;
+      g2048NewTile = g2048AddTile();
+      g2048Render(true);
+      if (!g2048CanMove()) {
+        g2048Over = true;
+        showToast('2048', '游戏结束，最终得分 ' + g2048Score, 'info', 5000);
+      }
+    }
+
+    function g2048CanMove() {
+      for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+        if (!g2048Grid[r][c]) return true;
+        if (c < 3 && g2048Grid[r][c] === g2048Grid[r][c + 1]) return true;
+        if (r < 3 && g2048Grid[r][c] === g2048Grid[r + 1][c]) return true;
+      }
+      return false;
+    }
+
+    function g2048ThemeRGB() {
+      try {
+        var cs = getComputedStyle(document.documentElement);
+        var c = cs.getPropertyValue('--theme').trim();
+        var m = c.match(/^#([0-9a-f]{6})$/i);
+        if (m) {
+          var h = m[1];
+          return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+        }
+      } catch (e) {}
+      return [42, 82, 152];
+    }
+
+    function g2048Render(animate) {
+      var board = $('game-2048-board');
+      if (!board) return;
+      var rgb = g2048ThemeRGB();
+      var step = 0;
+      if (animate && g2048Moves) step = (board.clientWidth - 50) / 4 + 10;
+      board.innerHTML = '';
+      for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+        var v = g2048Grid[r][c];
+        var cell = document.createElement('div');
+        cell.className = 'g2048-cell' + (v ? ' filled' : '');
+        cell.setAttribute('data-r', r);
+        cell.setAttribute('data-c', c);
+        var isSel = g2048Sel && g2048Sel[0] === r && g2048Sel[1] === c;
+        if (isSel) cell.classList.add('selected');
+        if (v) {
+          cell.textContent = v;
+          var level = Math.log2(v);
+          var alpha = Math.min(0.15 + level * 0.09, 0.92);
+          cell.style.background = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha.toFixed(2) + ')';
+          cell.style.color = level >= 3 ? '#fff' : 'var(--text)';
+          cell.style.fontSize = v >= 1024 ? '18px' : (v >= 128 ? '22px' : '30px');
+          if (animate && step) {
+            for (var m = 0; m < g2048Moves.length; m++) {
+              if (g2048Moves[m].tr === r && g2048Moves[m].tc === c) {
+                var mv = g2048Moves[m];
+                if (mv.fr !== r || mv.fc !== c) {
+                  cell.style.transform = 'translate(' + ((mv.fc - c) * step) + 'px,' + ((mv.fr - r) * step) + 'px)';
+                  cell.setAttribute('data-glide', '1');
+                }
+                break;
+              }
+            }
+          }
+          if (g2048NewTile && g2048NewTile[0] === r && g2048NewTile[1] === c) {
+            cell.classList.add('new');
+          }
+        } else if (g2048GodOn && g2048Sub === 'add' && isSel) {
+          var pv = g2048AddVal;
+          cell.textContent = pv;
+          cell.classList.add('preview');
+          var plv = Math.log2(pv);
+          var pa = Math.min(0.15 + plv * 0.09, 0.92) * 0.45;
+          cell.style.background = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + pa.toFixed(2) + ')';
+          cell.style.color = plv >= 3 ? '#fff' : 'var(--text)';
+          cell.style.fontSize = pv >= 1024 ? '18px' : (pv >= 128 ? '22px' : '30px');
+        }
+        board.appendChild(cell);
+      }
+      var scoreEl = $('game-2048-score');
+      if (scoreEl) scoreEl.textContent = g2048Score;
+      if (animate && g2048Moves) {
+        g2048Moves = null;
+        g2048NewTile = null;
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            var gliders = board.querySelectorAll('[data-glide="1"]');
+            for (var i = 0; i < gliders.length; i++) {
+              gliders[i].style.transform = '';
+            }
+          });
+        });
+      }
+    }
+
+    function g2048RefreshSelUI() {
+      var boardEl = $('game-2048-board');
+      if (!boardEl) return;
+      var rgb = g2048ThemeRGB();
+      for (var r = 0; r < 4; r++) {
+        for (var c = 0; c < 4; c++) {
+          var el = boardEl.querySelector('.g2048-cell[data-r="' + r + '"][data-c="' + c + '"]');
+          if (!el) continue;
+          var v = g2048Grid[r][c];
+          var isSel = g2048Sel && g2048Sel[0] === r && g2048Sel[1] === c;
+          el.classList.toggle('selected', !!isSel);
+          if (v) {
+            el.classList.remove('preview');
+            el.textContent = v;
+            var level = Math.log2(v);
+            var alpha = Math.min(0.15 + level * 0.09, 0.92);
+            el.style.background = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha.toFixed(2) + ')';
+            el.style.color = level >= 3 ? '#fff' : 'var(--text)';
+            el.style.fontSize = v >= 1024 ? '18px' : (v >= 128 ? '22px' : '30px');
+          } else if (g2048GodOn && g2048Sub === 'add' && isSel) {
+            var pv = g2048AddVal;
+            el.textContent = pv;
+            el.classList.add('preview');
+            var plv = Math.log2(pv);
+            var pa = Math.min(0.15 + plv * 0.09, 0.92) * 0.45;
+            el.style.background = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + pa.toFixed(2) + ')';
+            el.style.color = plv >= 3 ? '#fff' : 'var(--text)';
+            el.style.fontSize = pv >= 1024 ? '18px' : (pv >= 128 ? '22px' : '30px');
+          } else {
+            el.textContent = '';
+            el.classList.remove('preview');
+            el.style.background = '';
+            el.style.color = '';
+            el.style.fontSize = '';
+          }
+        }
+      }
+    }
+
+    function g2048BuildScale() {
+      var view = $('game-2048-view');
+      if (!view) return;
+      if (view.querySelector('#game-2048-scale')) return;
+      var topbar = view.querySelector('.game-2048-topbar');
+      var wrap = document.createElement('div');
+      wrap.id = 'game-2048-scale';
+      while (view.firstChild) wrap.appendChild(view.firstChild);
+      if (topbar) view.appendChild(topbar);
+      view.appendChild(wrap);
+    }
+
+    function g2048FitView() {
+      var view = $('game-2048-view');
+      var wrap = $('game-2048-scale');
+      if (!view || !wrap) return;
+      wrap.style.transform = 'none';
+      var natW = 0, natH = 0, i;
+      for (i = 0; i < wrap.children.length; i++) {
+        var child = wrap.children[i];
+        natW = Math.max(natW, child.offsetWidth);
+        natH += child.offsetHeight;
+      }
+      if (!natW) natW = 420;
+      if (!natH) natH = 600;
+      var topH = 0, topbar = view.querySelector('.game-2048-topbar');
+      if (topbar) topH = topbar.offsetHeight;
+      var availW = Math.max(view.clientWidth - 24, 1);
+      var availH = Math.max(view.clientHeight - topH - 24, 1);
+      var s = Math.min(1, availW / natW, availH / natH);
+      wrap.style.transformOrigin = 'center center';
+      wrap.style.transform = 'scale(' + s + ')';
+    }
+
+    function g2048ShowHelp() {
+      showConfirm('2048 玩法说明', '滑动屏幕 或 使用 方向键 / WASD 移动方块。\n相同数字的方块碰撞后会合并并累加得分。\n目标：拼出 2048！', '知道了');
+    }
+
+    function g2048ToggleGod() {
+      g2048GodOn = !g2048GodOn;
+      g2048Sub = '';
+      g2048Sel = null;
+      g2048SyncGodUI();
+      g2048RefreshSelUI();
+    }
+
+    function g2048SetSub(mode) {
+      g2048Sub = mode;
+      g2048Sel = null;
+      g2048SyncGodUI();
+      g2048RefreshSelUI();
+    }
+
+    function g2048SelectCell(cell) {
+      g2048Sel = cell;
+      g2048SyncGodUI();
+      g2048RefreshSelUI();
+    }
+
+    function g2048DeleteTile() {
+      if (!g2048Sel) return;
+      g2048Grid[g2048Sel[0]][g2048Sel[1]] = 0;
+      g2048Sel = null;
+      if (g2048CanMove()) g2048Over = false;
+      g2048SyncGodUI();
+      g2048Render();
+    }
+
+    function g2048PlaceTile() {
+      if (!g2048Sel) return;
+      g2048Grid[g2048Sel[0]][g2048Sel[1]] = g2048AddVal;
+      g2048Sel = null;
+      g2048SyncGodUI();
+      g2048Render();
+    }
+
+    function g2048SyncGodUI() {
+      var toolbar = $('game-2048-toolbar');
+      var actions = $('game-2048-actions');
+      if (!toolbar || !actions) return;
+      if (!g2048GodOn) {
+        toolbar.style.display = 'none';
+        actions.style.display = 'none';
+        g2048RefreshSelUI();
+        return;
+      }
+      toolbar.style.display = '';
+      var cancelBtn = $('game-2048-tool-cancel');
+      var delBtn = $('game-2048-tool-del');
+      var addBtn = $('game-2048-tool-add');
+      var label = toolbar.querySelector('.game-2048-mode-label');
+      if (g2048Sub) {
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (delBtn) delBtn.style.display = 'none';
+        if (addBtn) addBtn.style.display = 'none';
+        if (!label) {
+          label = document.createElement('span');
+          label.className = 'game-2048-mode-label';
+          toolbar.appendChild(label);
+        }
+        label.textContent = g2048Sub === 'del' ? '删除模式' : '添加模式';
+      } else {
+        if (cancelBtn) cancelBtn.style.display = '';
+        if (delBtn) delBtn.style.display = '';
+        if (addBtn) addBtn.style.display = '';
+        if (label) label.remove();
+      }
+      actions.style.display = '';
+      var html = '';
+      if (g2048Sub === 'del') {
+        html += '<button type="button" class="btn btn-outline btn-sm" data-act="back">返回</button>';
+        html += '<button type="button" class="btn btn-danger btn-sm" data-act="delete"' + (g2048Sel ? '' : ' disabled') + '>删除</button>';
+      } else if (g2048Sub === 'add') {
+        html += '<div class="game-2048-value-row">';
+        html += '<button type="button" class="btn btn-outline btn-sm" data-act="back">返回</button>';
+        html += '<button type="button" class="btn btn-primary btn-sm" data-act="place"' + (g2048Sel ? '' : ' disabled') + '>放置</button>';
+        for (var i = 0; i < g2048Values.length; i++) {
+          var val = g2048Values[i];
+          html += '<button type="button" class="game-2048-value-btn' + (g2048AddVal === val ? ' active' : '') + '" data-act="value" data-value="' + val + '">' + val + '</button>';
+        }
+        html += '<button type="button" class="game-2048-value-btn' + (g2048Values.indexOf(g2048AddVal) === -1 ? ' active' : '') + '" data-act="custom">自定义</button>';
+        html += '</div>';
+      } else {
+        actions.style.display = 'none';
+      }
+      actions.innerHTML = html;
+    }
+
+    // 进入小游戏页面时初始化 2048
+    var _origSwitchGames = null;
+    var gamesView = $('page-games');
+    if (gamesView && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(function() {
+        if (gamesView.classList.contains('active')) { g2048Init(); gtttInit(); gmrgInit(); }
+      }).observe(gamesView, { attributes: true, attributeFilter: ['class'] });
+    }
+    g2048Init();
+    gtttInit();
+    gmrgInit();
+
+    // ============ 井字棋 ============
+    var gtttInited = false;
+    var gtttState = null;
+    var gtttTurn = 'X';
+    var gtttOver = false;
+    var gtttDiff = null;
+    var gtttWinLine = null;
+    var gtttLines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+    function gtttCheckWin(st, p) {
+      for (var i = 0; i < gtttLines.length; i++) {
+        var l = gtttLines[i];
+        if (st[l[0]] === p && st[l[1]] === p && st[l[2]] === p) return l;
+      }
+      return null;
+    }
+    function gtttEmptyCells() {
+      var out = [];
+      for (var i = 0; i < 9; i++) if (gtttState[i] === '') out.push(i);
+      return out;
+    }
+    function gtttIsFull() { return gtttEmptyCells().length === 0; }
+
+    function gtttInit() {
+      if (gtttInited) return;
+      gtttInited = true;
+      var entry = $('game-ttt-entry');
+      var menuView = $('game-ttt-menu-view');
+      var gameView = $('game-ttt-view');
+      var homeView = $('games-home-view');
+      if (!entry || !menuView || !gameView || !homeView) return;
+
+      entry.addEventListener('click', function() {
+        homeView.style.display = 'none';
+        menuView.classList.add('game-ttt-menu-open');
+      });
+
+      function gtttMenuBack() {
+        menuView.classList.remove('game-ttt-menu-open');
+        homeView.style.display = '';
+      }
+      var menuBack = $('game-ttt-menu-back');
+      if (menuBack) menuBack.addEventListener('click', gtttMenuBack);
+      var backBottom = $('game-ttt-back-bottom');
+      if (backBottom) backBottom.addEventListener('click', gtttMenuBack);
+
+      var btnMedium = $('game-ttt-btn-medium');
+      var btnHard = $('game-ttt-btn-hard');
+      if (btnMedium) btnMedium.addEventListener('click', function() { gtttEnter('medium'); });
+      if (btnHard) btnHard.addEventListener('click', function() { gtttEnter('hard'); });
+
+      var backBtn = $('game-ttt-back');
+      if (backBtn) backBtn.addEventListener('click', function() {
+        gameView.classList.remove('game-ttt-open');
+        homeView.style.display = '';
+      });
+
+      var restartBtn = $('game-ttt-restart');
+      if (restartBtn) restartBtn.addEventListener('click', function() {
+        gtttReset();
+        gtttRender();
+      });
+
+      var board = $('game-ttt-board');
+      if (board) board.addEventListener('click', gtttCellClick);
+    }
+
+    function gtttEnter(diff) {
+      gtttDiff = diff;
+      var menuView = $('game-ttt-menu-view');
+      var gameView = $('game-ttt-view');
+      menuView.classList.remove('game-ttt-menu-open');
+      gameView.classList.add('game-ttt-open');
+      gtttReset();
+      gtttRender();
+    }
+
+    function gtttReset() {
+      gtttState = ['','','','','','','','',''];
+      gtttTurn = 'X';
+      gtttOver = false;
+      gtttWinLine = null;
+    }
+
+    function gtttCellClick(e) {
+      if (gtttOver || gtttTurn !== 'X') return;
+      var cell = e.target.closest('.gttt-cell');
+      if (!cell) return;
+      var i = parseInt(cell.getAttribute('data-i'), 10);
+      if (isNaN(i) || gtttState[i] !== '') return;
+      gtttState[i] = 'X';
+      gtttWinLine = gtttCheckWin(gtttState, 'X');
+      if (gtttWinLine || gtttIsFull()) { gtttOver = true; gtttRender(); return; }
+      gtttTurn = 'O';
+      gtttRender();
+      setTimeout(gtttAiTurn, 350);
+    }
+
+    function gtttAiTurn() {
+      if (gtttOver) return;
+      var move = gtttDiff === 'hard' ? gtttHardMove() : gtttMediumMove();
+      if (move < 0) return;
+      gtttState[move] = 'O';
+      gtttWinLine = gtttCheckWin(gtttState, 'O');
+      if (gtttWinLine || gtttIsFull()) { gtttOver = true; gtttRender(); return; }
+      gtttTurn = 'X';
+      gtttRender();
+    }
+
+    function gtttMediumMove() {
+      var empty = gtttEmptyCells();
+      for (var i = 0; i < empty.length; i++) {
+        gtttState[empty[i]] = 'O';
+        if (gtttCheckWin(gtttState, 'O')) { gtttState[empty[i]] = ''; return empty[i]; }
+        gtttState[empty[i]] = '';
+      }
+      for (var j = 0; j < empty.length; j++) {
+        gtttState[empty[j]] = 'X';
+        if (gtttCheckWin(gtttState, 'X')) { gtttState[empty[j]] = ''; return empty[j]; }
+        gtttState[empty[j]] = '';
+      }
+      if (gtttState[4] === '') return 4;
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    function gtttHardMove() {
+      var bestScore = -Infinity, bestMove = -1;
+      var empty = gtttEmptyCells();
+      for (var i = 0; i < empty.length; i++) {
+        var e = empty[i];
+        gtttState[e] = 'O';
+        var s = gtttMinimax(gtttState, 'X', 0, false);
+        gtttState[e] = '';
+        if (s > bestScore) { bestScore = s; bestMove = e; }
+      }
+      return bestMove;
+    }
+
+    function gtttMinimax(st, player, depth, isMax) {
+      if (gtttCheckWin(st, 'O')) return 10 - depth;
+      if (gtttCheckWin(st, 'X')) return depth - 10;
+      var empty = [];
+      for (var i = 0; i < 9; i++) if (st[i] === '') empty.push(i);
+      if (empty.length === 0) return 0;
+      if (isMax) {
+        var best = -Infinity;
+        for (var j = 0; j < empty.length; j++) {
+          st[empty[j]] = 'O';
+          best = Math.max(best, gtttMinimax(st, 'X', depth + 1, false));
+          st[empty[j]] = '';
+        }
+        return best;
+      } else {
+        var best2 = Infinity;
+        for (var k = 0; k < empty.length; k++) {
+          st[empty[k]] = 'X';
+          best2 = Math.min(best2, gtttMinimax(st, 'O', depth + 1, true));
+          st[empty[k]] = '';
+        }
+        return best2;
+      }
+    }
+
+    function gtttRender() {
+      var board = $('game-ttt-board');
+      if (!board) return;
+      var html = '';
+      for (var i = 0; i < 9; i++) {
+        var cls = 'gttt-cell';
+        if (gtttState[i] === 'X') cls += ' x';
+        else if (gtttState[i] === 'O') cls += ' o';
+        if (gtttWinLine && gtttWinLine.indexOf(i) !== -1) cls += ' win-cell';
+        var sym = gtttState[i] === 'X' ? '✕' : (gtttState[i] === 'O' ? '◯' : '');
+        html += '<div class="' + cls + '" data-i="' + i + '">' + sym + '</div>';
+      }
+      board.innerHTML = html;
+      var status = $('game-ttt-status');
+      if (!status) return;
+      if (gtttWinLine) {
+        var w = gtttState[gtttWinLine[0]];
+        status.textContent = w === 'X' ? '你赢了！' : 'AI 赢了！';
+        status.className = 'game-ttt-status ' + (w === 'X' ? 'win-x' : 'win-o');
+      } else if (gtttIsFull()) {
+        status.textContent = '平局';
+        status.className = 'game-ttt-status draw';
+      } else {
+        status.textContent = (gtttTurn === 'X' ? '你的回合' : 'AI 思考中…') + (gtttDiff === 'hard' ? '（不可能）' : '（中等）');
+        status.className = 'game-ttt-status';
+      }
+    }
+
+    // ============ 合成小游戏 ============
+    var gmrgInited = false;
+    var gmrg = null;
+    var gmrgIcon = null;
+    var gmrgIconRgb = null;
+
+    function gmrgLoadIcon() {
+      if (gmrgIcon) return;
+      gmrgIcon = new Image();
+      gmrgIcon.src = 'icon.ico';
+    }
+
+    function gmrgIconColor() {
+      if (gmrgIconRgb || !gmrgIcon || !gmrgIcon.complete || !gmrgIcon.naturalWidth) return;
+      try {
+        var w = gmrgIcon.naturalWidth, h = gmrgIcon.naturalHeight;
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var cx = cv.getContext('2d');
+        cx.drawImage(gmrgIcon, 0, 0, w, h);
+        var d = cx.getImageData(0, 0, w, h).data;
+        var r = 0, g = 0, b = 0, n = 0;
+        for (var i = 0; i < d.length; i += 4) {
+          if (d[i + 3] > 0) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+        }
+        if (n) gmrgIconRgb = [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+      } catch (e2) { gmrgIconRgb = null; }
+    }
+
+    function gmrgColor(level) {
+      gmrgIconColor();
+      var rgb = gmrgIconRgb || [239, 68, 68];
+      var rr = rgb[0] / 255, gg = rgb[1] / 255, bb = rgb[2] / 255;
+      var mx = Math.max(rr, gg, bb), mn = Math.min(rr, gg, bb);
+      var l = (mx + mn) / 2;
+      var h = 0, s = 0;
+      var dd = mx - mn;
+      if (dd > 0) {
+        s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+        if (mx === rr) h = ((gg - bb) / dd + (gg < bb ? 6 : 0)) / 6;
+        else if (mx === gg) h = ((bb - rr) / dd + 2) / 6;
+        else h = ((rr - gg) / dd + 4) / 6;
+      }
+      if (s < 0.3) s = 0.3;
+      return 'hsl(' + Math.round((h * 360 + 90 * (level - 1)) % 360) + ',' +
+        Math.round(s * 100) + '%,' + Math.round(l * 100) + '%)';
+    }
+
+    function gmrgRad(level) { return 12 + 4 * (level - 1); }
+
+    function gmrgInit() {
+      if (gmrgInited) return;
+      gmrgInited = true;
+      gmrgLoadIcon();
+      var entry = $('game-mrg-entry');
+      var menuView = $('game-mrg-menu-view');
+      var gameView = $('game-mrg-view');
+      var homeView = $('games-home-view');
+      if (!entry || !menuView || !gameView || !homeView) return;
+
+      entry.addEventListener('click', function() {
+        homeView.style.display = 'none';
+        menuView.classList.add('game-mrg-menu-open');
+      });
+
+      function gmrgMenuBack() {
+        menuView.classList.remove('game-mrg-menu-open');
+        homeView.style.display = '';
+      }
+      var menuBack = $('game-mrg-menu-back');
+      if (menuBack) menuBack.addEventListener('click', gmrgMenuBack);
+      var backBottom = $('game-mrg-back-bottom');
+      if (backBottom) backBottom.addEventListener('click', gmrgMenuBack);
+
+      var btnRect = $('game-mrg-btn-rect');
+      var btnCircle = $('game-mrg-btn-circle');
+      if (btnRect) btnRect.addEventListener('click', function() { gmrgEnter(false); });
+      if (btnCircle) btnCircle.addEventListener('click', function() { gmrgEnter(true); });
+
+      var backBtn = $('game-mrg-back');
+      if (backBtn) backBtn.addEventListener('click', gmrgExitToHome);
+      var restartBtn = $('game-mrg-restart');
+      if (restartBtn) restartBtn.addEventListener('click', gmrgStart);
+
+      var container = $('game-mrg-container');
+      if (container) {
+        container.addEventListener('pointerdown', gmrgAimDown);
+        container.addEventListener('pointermove', gmrgAimMove);
+        container.addEventListener('pointerup', gmrgAimUp);
+      }
+    }
+
+    function gmrgEnter(circle) {
+      gmrgStop();
+      var menuView = $('game-mrg-menu-view');
+      var gameView = $('game-mrg-view');
+      var container = $('game-mrg-container');
+      if (!menuView || !gameView || !container) return;
+      menuView.classList.remove('game-mrg-menu-open');
+      gameView.classList.add('game-mrg-open');
+      container.classList.toggle('circle', !!circle);
+      gmrgStart();
+    }
+
+    function gmrgStart() {
+      gmrgStop();
+      var container = $('game-mrg-container');
+      var canvas = $('game-mrg-canvas');
+      var line = $('game-mrg-line');
+      if (!container || !canvas) return;
+      var rect = container.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      if (!W || !H) { W = window.innerWidth; H = window.innerHeight - 60; }
+      var display = W, scale = 1;
+      if (container.classList.contains('circle')) {
+        var LOGICAL = 300;
+        display = Math.max(240, Math.round(Math.min(W, H)));
+        scale = display / LOGICAL;
+        W = LOGICAL; H = LOGICAL;
+        container.style.width = display + 'px';
+        container.style.height = display + 'px';
+        container.style.flex = '0 0 auto';
+      } else {
+        container.style.width = '';
+        container.style.height = '';
+        container.style.flex = '';
+      }
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(display * dpr);
+      canvas.height = Math.round((container.classList.contains('circle') ? display : H) * dpr);
+      canvas.style.width = display + 'px';
+      canvas.style.height = (container.classList.contains('circle') ? display : H) + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+      gmrg = {
+        W: W, H: H, canvas: canvas, ctx: ctx, container: container,
+        circle: container.classList.contains('circle'),
+        scale: scale, display: display,
+        balls: [], effects: [], score: 0, over: false, raf: 0, last: 0,
+        overTime: 0, nearTime: 0, lineShown: false, lineFade: 0,
+        aiming: false, aimX: 0, aimLevel: 1,
+        cx: W / 2, cy: H / 2, CR: Math.min(W, H) / 2, lineY: H * 0.15
+      };
+      line.style.top = (gmrg.lineY * scale) + 'px';
+      line.style.display = 'none';
+      gmrgUpdateScore();
+      gmrg.raf = requestAnimationFrame(gmrgLoop);
+    }
+
+    function gmrgStop() {
+      if (gmrg && gmrg.raf) cancelAnimationFrame(gmrg.raf);
+      window.removeEventListener('resize', gmrgOnResize);
+      var line = $('game-mrg-line');
+      if (line) line.style.display = 'none';
+      gmrg = null;
+    }
+
+    function gmrgOnResize() {
+      if (!gmrg) return;
+      var container = $('game-mrg-container');
+      var canvas = $('game-mrg-canvas');
+      var line = $('game-mrg-line');
+      if (!container || !canvas) return;
+      var rect = container.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      if (!W || !H) { W = window.innerWidth; H = window.innerHeight - 60; }
+      if (gmrg.circle) {
+        var display = Math.max(240, Math.round(Math.min(W, H)));
+        gmrg.scale = display / gmrg.W;
+        gmrg.display = display;
+        container.style.width = display + 'px';
+        container.style.height = display + 'px';
+      } else {
+        gmrg.display = W; gmrg.scale = 1;
+      }
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(gmrg.display * dpr);
+      canvas.height = Math.round((gmrg.circle ? gmrg.display : H) * dpr);
+      canvas.style.width = gmrg.display + 'px';
+      canvas.style.height = (gmrg.circle ? gmrg.display : H) + 'px';
+      gmrg.ctx.setTransform(gmrg.scale * dpr, 0, 0, gmrg.scale * dpr, 0, 0);
+      if (line) line.style.top = (gmrg.lineY * gmrg.scale) + 'px';
+    }
+
+    function gmrgAimDown(e) {
+      if (!gmrg || gmrg.over) return;
+      gmrg.aiming = true;
+      gmrg.aimLevel = 1 + Math.floor(Math.random() * 4);
+      gmrgAimMove(e);
+    }
+
+    function gmrgAimMove(e) {
+      if (!gmrg || !gmrg.aiming) return;
+      var r = gmrg.container.getBoundingClientRect();
+      var rad = gmrgRad(gmrg.aimLevel);
+      var x = (e.clientX - r.left) / gmrg.scale;
+      if (gmrg.circle) {
+        x = Math.max(gmrg.cx - (gmrg.CR - rad - 1), Math.min(gmrg.cx + (gmrg.CR - rad - 1), x));
+      } else {
+        x = Math.max(rad, Math.min(gmrg.W - rad, x));
+      }
+      gmrg.aimX = x;
+    }
+
+    function gmrgAimUp() {
+      if (!gmrg || gmrg.over) return;
+      var now = Date.now();
+      if (gmrg.lastDrop && now - gmrg.lastDrop < 500) return;
+      gmrg.lastDrop = now;
+      gmrg.aiming = false;
+      var level = gmrg.aimLevel;
+      var rad = gmrgRad(level);
+      var x = gmrg.aimX;
+      if (gmrg.circle) {
+        var y = gmrg.cy - (gmrg.CR - rad - 1);
+        gmrg.balls.push({ x: x, y: y, vx: 0, vy: 1, r: rad, level: level, rot: 0, rotv: 0, flash: false });
+      } else {
+        var ox = (Math.random() * 4) - 2;
+        gmrg.balls.push({ x: x + ox, y: -rad * 2, vx: 0, vy: 0, r: rad, level: level, rot: 0, rotv: 0, flash: false });
+      }
+    }
+
+    function gmrgLoop(t) {
+      if (!gmrg || gmrg.over) return;
+      var dt = gmrg.last ? Math.min((t - gmrg.last) / 1000, 0.033) : 0.016;
+      gmrg.last = t;
+      gmrgPhysics(dt);
+      gmrgRender();
+      gmrg.raf = requestAnimationFrame(gmrgLoop);
+    }
+
+    function gmrgPhysics(dt) {
+      var m = gmrg, G = 900, balls = m.balls, i, j;
+      for (i = 0; i < balls.length; i++) {
+        var b = balls[i];
+        b.vy += G * dt;
+        b.vx *= (1 - 2.7 * dt);
+        b.vy *= (1 - 2.2 * dt);
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        var spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (spd > 6) {
+          b.rotv += (b.vx / Math.max(b.r, 1) - b.rotv) * Math.min(1, dt * 6);
+        } else {
+          b.rotv *= (1 - 5 * dt);
+        }
+        b.rot += b.rotv * dt;
+      }
+      for (var it = 0; it < 1; it++) {
+        for (i = 0; i < balls.length; i++) {
+          var a = balls[i];
+          gmrgWall(a);
+          for (j = i + 1; j < balls.length; j++) {
+            var c = balls[j];
+            var dx = c.x - a.x, dy = c.y - a.y;
+            var rr = a.r + c.r;
+            var d2 = dx * dx + dy * dy;
+            if (d2 < rr * rr && d2 > 0.0001) {
+              var d = Math.sqrt(d2);
+              var nx = dx / d, ny = dy / d;
+              var ma = a.r * a.r, mc = c.r * c.r;
+              var ov = (rr - d) * 0.85, inv = 1 / (ma + mc);
+              a.x -= nx * ov * mc * inv; a.y -= ny * ov * mc * inv;
+              c.x += nx * ov * ma * inv; c.y += ny * ov * ma * inv;
+              var rvx = c.vx - a.vx, rvy = c.vy - a.vy;
+              var vn = rvx * nx + rvy * ny;
+              if (vn < 0) {
+                var e = 0.45;
+                var ind = (1 + e) * vn;
+                a.vx += ind * nx * mc / (ma + mc); a.vy += ind * ny * mc / (ma + mc);
+                c.vx -= ind * nx * ma / (ma + mc); c.vy -= ind * ny * ma / (ma + mc);
+              }
+            }
+          }
+        }
+      }
+      gmrgMerge();
+      gmrgLimit(dt);
+    }
+
+    function gmrgWall(b) {
+      var m = gmrg;
+      if (m.circle) {
+        var dx = b.x - m.cx, dy = b.y - m.cy;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        var maxd = m.CR - b.r - 1;
+        if (d > maxd && d > 0) {
+          var nx = dx / d, ny = dy / d;
+          b.x = m.cx + nx * maxd; b.y = m.cy + ny * maxd;
+          var vn = b.vx * nx + b.vy * ny;
+          if (vn > 0) { b.vx -= 1.5 * vn * nx; b.vy -= 1.5 * vn * ny; }
+          var tx = -ny, ty = nx;
+          var vt = b.vx * tx + b.vy * ty;
+          b.vx -= tx * vt * 0; b.vy -= ty * vt * 0;
+        }
+      } else {
+        if (b.y + b.r > m.H) { b.y = m.H - b.r; if (b.vy > 0) b.vy = -b.vy * 0.45; b.vx *= 0.93; }
+        if (b.y - b.r < 0 && b.vy < 0) { b.y = b.r; b.vy = -b.vy * 0.55; }
+        if (b.x - b.r < 0) { b.x = b.r; if (b.vx < 0) b.vx = -b.vx * 0.6; }
+        if (b.x + b.r > m.W) { b.x = m.W - b.r; if (b.vx > 0) b.vx = -b.vx * 0.6; }
+      }
+    }
+
+    function gmrgMerge() {
+      var m = gmrg, balls = m.balls, now = performance.now();
+      var merged = true;
+      while (merged) {
+        merged = false;
+        for (var i = 0; i < balls.length; i++) {
+          var a = balls[i];
+          if (a.cd && now < a.cd) continue;
+          for (var j = i + 1; j < balls.length; j++) {
+            var c = balls[j];
+            if (c.cd && now < c.cd) continue;
+            if (a.level !== c.level) continue;
+            var dx = c.x - a.x, dy = c.y - a.y;
+            var rr = a.r + c.r + 2;
+            if (dx * dx + dy * dy <= rr * rr) {
+              var nl = a.level + 1;
+              var nx = (a.x + c.x) / 2, ny = (a.y + c.y) / 2;
+              var nvx = a.vx + c.vx, nvy = a.vy + c.vy;
+              var fcol = nl > 10 ? gmrgColor(10) : gmrgColor(nl);
+              var fxr = nl > 10 ? gmrgRad(10) : gmrgRad(nl);
+              gmrgFx(nx, ny, fcol, fxr);
+              balls.splice(j, 1); balls.splice(i, 1);
+              if (nl >= 11) {
+                m.score += 100;
+                gmrgPop(nx, ny, '+100 合成11级');
+              } else {
+                balls.push({ x: nx, y: ny, vx: nvx, vy: nvy, r: gmrgRad(nl), level: nl, rot: 0, rotv: 0, cd: now + 500, flash: false });
+                m.score += 10 * nl;
+                if (nl === 10) gmrgCelebrate();
+                gmrgPop(nx, ny, '+' + 10 * nl);
+              }
+              gmrgUpdateScore();
+              merged = true;
+              break;
+            }
+          }
+          if (merged) break;
+        }
+      }
+    }
+
+    function gmrgLimit(dt) {
+      var m = gmrg, H = m.H, balls = m.balls, i, hasNear = false;
+      for (i = 0; i < balls.length; i++) {
+        if (balls[i].y - balls[i].r < H * 0.25) { hasNear = true; break; }
+      }
+      if (hasNear) { m.nearTime = Math.min(3000, m.nearTime + dt * 1000); } else { m.nearTime = 0; }
+      var target = m.nearTime >= 3000 ? 1 : 0;
+      m.lineFade += (target - m.lineFade) * Math.min(1, dt * (target ? 3 : 9));
+      m.lineShown = m.lineFade > 0.3;
+      if (m.lineShown) {
+        var exceeded = false;
+        for (i = 0; i < balls.length; i++) {
+          var b = balls[i];
+          var isOver = b.y - b.r < m.lineY;
+          b.flash = isOver;
+          if (isOver) exceeded = true;
+        }
+        if (exceeded) { m.overTime += dt * 1000; } else { m.overTime = Math.max(0, m.overTime - dt * 1000); }
+        if (m.overTime >= 5000) gmrgGameOver();
+      } else {
+        m.overTime = Math.max(0, m.overTime - dt * 1000);
+      }
+      if (!balls.length) { m.nearTime = 0; m.lineFade = 0; m.lineShown = false; m.overTime = 0; }
+    }
+
+    function gmrgPredict(x, r) {
+      var m = gmrg;
+      if (m.circle) {
+        var rmax = m.CR - r - 1;
+        var ddx = x - m.cx;
+        var hh = rmax * rmax - ddx * ddx;
+        return { x: x, y: m.cy - Math.sqrt(hh < 0 ? 0 : hh) };
+      }
+      return { x: x, y: r };
+    }
+
+    function gmrgRender() {
+      var m = gmrg, ctx = m.ctx, i;
+      ctx.clearRect(0, 0, m.W, m.H);
+      if (m.circle) {
+        ctx.beginPath();
+        ctx.arc(m.cx, m.cy, m.CR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(127,127,127,.08)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(127,127,127,.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(m.cx, m.cy, m.CR + 1, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (m.lineFade > 0.02) {
+        ctx.save();
+        ctx.globalAlpha = m.lineFade;
+        ctx.strokeStyle = '#ef4444';
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, m.lineY); ctx.lineTo(m.W, m.lineY); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('上限', m.W - 40, m.lineY - 4);
+        ctx.restore();
+      }
+      for (i = 0; i < m.balls.length; i++) {
+        var b = m.balls[i];
+        var col = gmrgColor(b.level);
+        var fade = b.flash && m.lineFade > 0.3 && Math.floor(performance.now() / 380) % 2 === 0;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rot || 0);
+        ctx.globalAlpha = fade ? 0.35 : 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, b.r, 0, Math.PI * 2);
+        ctx.clip();
+        if (gmrgIcon && gmrgIcon.complete && gmrgIcon.naturalWidth) {
+          ctx.drawImage(gmrgIcon, -b.r, -b.r, b.r * 2, b.r * 2);
+        } else {
+          ctx.fillStyle = col;
+          ctx.fillRect(-b.r, -b.r, b.r * 2, b.r * 2);
+        }
+        if (b.level > 1) {
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = col;
+          ctx.globalAlpha = fade ? 0.4 : 0.55;
+          ctx.fillRect(-b.r, -b.r, b.r * 2, b.r * 2);
+        }
+        ctx.restore();
+      }
+      var nowMs = performance.now();
+      for (i = m.effects.length - 1; i >= 0; i--) {
+        var fx = m.effects[i];
+        var et = (nowMs - fx.t0) / 500;
+        if (et >= 1) { m.effects.splice(i, 1); continue; }
+        var er = fx.r * (1 + 1.3 * et);
+        ctx.save();
+        ctx.globalAlpha = 0.7 * (1 - et);
+        ctx.strokeStyle = fx.col;
+        ctx.lineWidth = 3 * (1 - et) + 0.5;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, er, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      if (m.aiming && !m.over) {
+        var lv = m.aimLevel;
+        var arad = gmrgRad(lv);
+        var ax = m.aimX;
+        var pr = gmrgPredict(ax, arad);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,.5)';
+        ctx.setLineDash([6, 6]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(ax, pr.y + arad);
+        ctx.lineTo(ax, m.circle ? m.cy + m.CR : m.H);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, arad, 0, Math.PI * 2);
+        ctx.fillStyle = gmrgColor(lv);
+        ctx.globalAlpha = 0.45;
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function gmrgFx(x, y, col, r) {
+      if (!gmrg) return;
+      gmrg.effects.push({ x: x, y: y, col: col, r: r, t0: performance.now() });
+    }
+
+    function gmrgPop(x, y, txt) {
+      if (!gmrg) return;
+      var r = gmrg.container.getBoundingClientRect();
+      var el = document.createElement('div');
+      el.className = 'mrg-pop';
+      el.textContent = txt;
+      el.style.left = (r.left + x) + 'px';
+      el.style.top = (r.top + y) + 'px';
+      document.body.appendChild(el);
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 900);
+    }
+
+    function gmrgCelebrate(txt) {
+      var o = document.createElement('div');
+      o.className = 'mrg-celebrate';
+      o.innerHTML = '<img src="icon.ico" alt=""><div class="mrg-celebrate-text">' + (txt || '合成 10 级！') + '</div>';
+      document.body.appendChild(o);
+      setTimeout(function() { if (o.parentNode) o.parentNode.removeChild(o); }, 3000);
+    }
+
+    function gmrgUpdateScore() {
+      var st = $('game-mrg-status');
+      if (st && gmrg) st.textContent = '合成 · 得分 ' + gmrg.score;
+    }
+
+    function gmrgGameOver() {
+      var m = gmrg;
+      if (!m || m.over) return;
+      m.over = true;
+      var score = m.score;
+      gmrgStop();
+      var ov = document.createElement('div');
+      ov.className = 'mrg-overlay';
+      ov.innerHTML = '<div class="mrg-over-box"><div class="mrg-over-title">游戏结束</div>' +
+        '<div class="mrg-over-score">得分 <b>' + score + '</b></div>' +
+        '<div class="mrg-over-actions">' +
+        '<button type="button" class="btn btn-outline" id="mrg-over-back">返回上一页</button>' +
+        '<button type="button" class="btn btn-primary" id="mrg-over-restart">重新开始</button></div></div>';
+      document.body.appendChild(ov);
+      $('mrg-over-back').addEventListener('click', function() {
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        gmrgExitToHome();
+      });
+      $('mrg-over-restart').addEventListener('click', function() {
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        gmrgStart();
+      });
+    }
+
+    function gmrgExitToHome() {
+      gmrgStop();
+      var gameView = $('game-mrg-view');
+      var homeView = $('games-home-view');
+      if (gameView) gameView.classList.remove('game-mrg-open');
+      if (homeView) homeView.style.display = '';
+    }
+
     var devPanelShortcutToggle = $('dev-panel-shortcut-toggle');
     if (devPanelShortcutToggle && API && API.setDevPanelShortcutEnabled) {
       devPanelShortcutToggle.checked = localStorage.getItem('devPanelShortcutEnabled') !== 'false';
@@ -6211,6 +7443,13 @@
     $('show-search-tab-toggle').addEventListener('change', () => {
       enableSearchTab = $('show-search-tab-toggle').checked;
       localStorage.setItem('showSearchTab', enableSearchTab);
+      applySidebarVisibility();
+    });
+
+    $('show-games-tab-toggle').checked = showGamesTab;
+    $('show-games-tab-toggle').addEventListener('change', () => {
+      showGamesTab = $('show-games-tab-toggle').checked;
+      localStorage.setItem('showGamesTab', showGamesTab);
       applySidebarVisibility();
     });
 
@@ -8304,6 +9543,7 @@
   var disableShake = localStorage.getItem('disableShake') === 'true';
   var disableCall = localStorage.getItem('disableCall') === 'true';
   var enableSearchTab = localStorage.getItem('showSearchTab') === 'true';
+  var showGamesTab = localStorage.getItem('showGamesTab') === 'true';
   var showAppearanceTab = localStorage.getItem('showAppearanceTab') !== 'false';
   var showBrowserTab = localStorage.getItem('showBrowserTab') !== 'false';
   var showAnnouncementsTab = localStorage.getItem('showAnnouncementsTab') !== 'false';
@@ -8349,11 +9589,13 @@
 
   function applySidebarVisibility() {
     var searchBtn = document.querySelector('.sidebar-btn[data-page="search"]');
+    var gamesBtn = document.querySelector('.sidebar-btn[data-page="games"]');
     var appearanceBtn = document.querySelector('.sidebar-btn[data-page="appearance"]');
     var browserBtn = document.querySelector('.sidebar-btn[data-page="browser"]');
     var announcementsBtn = document.querySelector('.sidebar-btn[data-page="announcements"]');
     var xxtBtn = document.querySelector('.sidebar-btn[data-page="xxt"]');
     if (searchBtn) searchBtn.style.display = enableSearchTab ? '' : 'none';
+    if (gamesBtn) gamesBtn.style.display = showGamesTab ? '' : 'none';
     if (appearanceBtn) appearanceBtn.style.display = showAppearanceTab ? '' : 'none';
     if (browserBtn) browserBtn.style.display = showBrowserTab ? '' : 'none';
     if (announcementsBtn) announcementsBtn.style.display = showAnnouncementsTab ? '' : 'none';

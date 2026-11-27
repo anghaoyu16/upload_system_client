@@ -89,6 +89,7 @@
       <div class="sidebar-nav">
         <button class="sidebar-btn active" data-page="home" title="主页"><i class="fa-solid fa-house"></i></button>
         <button class="sidebar-btn" data-page="search" title="搜索作业"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="sidebar-btn" data-page="games" title="小游戏" style="display:none"><i class="fa-solid fa-gamepad"></i></button>
         <button class="sidebar-btn" data-page="downloads" title="下载列表"><i class="fa-solid fa-download"></i></button>
         <button class="sidebar-btn" data-page="appearance" title="个性化"><i class="fa-solid fa-brush"></i></button>
         <button class="sidebar-btn" data-page="browser" title="浏览器"><i class="fa-solid fa-globe"></i></button>
@@ -679,6 +680,16 @@
             </div>
             <div class="settings-item">
               <div>
+                <div class="settings-label"><i class="fa-solid fa-gamepad"></i> 显示小游戏选项卡</div>
+                <div class="settings-desc">在侧边栏显示小游戏图标</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="show-games-tab-toggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div>
                 <div class="settings-label"><i class="fa-solid fa-palette"></i> 显示外观选项卡</div>
                 <div class="settings-desc">在侧边栏显示外观图标</div>
               </div>
@@ -977,6 +988,13 @@
                 <span class="slider"></span>
               </label>
             </div>
+            <div class="settings-item">
+              <div>
+                <div class="settings-label">跳转到小游戏标签页</div>
+                <div class="settings-desc">跳转到小游戏标签页（也可通过协议 anghaoyu16://games/ 触发）</div>
+              </div>
+              <button class="btn btn-primary" id="open-games-btn" style="padding:6px 14px;font-size:12px;">跳转</button>
+            </div>
             </div>
             <div class="settings-panel" id="panel-about">
             <div class="settings-item">
@@ -1041,6 +1059,113 @@
       </div>
 
       <div class="page" id="page-mmd"></div>
+
+      <div class="page" id="page-games">
+        <div class="card" id="games-home-view">
+          <div class="card-header"><span><i class="fa-solid fa-gamepad"></i> 小游戏</span></div>
+          <div class="games-menu">
+            <div class="game-entry" id="game-2048-entry">
+              <div class="game-entry-icon">2048</div>
+              <div class="game-entry-name">2048</div>
+            </div>
+            <div class="game-entry" id="game-ttt-entry">
+              <div class="game-entry-icon ttt">
+              <svg viewBox="0 0 60 60" width="60" height="60" fill="none">
+                <g stroke="#fff" stroke-width="2">
+                  <line x1="20" y1="0" x2="20" y2="60"/>
+                  <line x1="40" y1="0" x2="40" y2="60"/>
+                  <line x1="0" y1="20" x2="60" y2="20"/>
+                  <line x1="0" y1="40" x2="60" y2="40"/>
+                </g>
+                <g stroke="#fff" stroke-width="3" stroke-linecap="round">
+                  <path d="M4 4 L16 16 M16 4 L4 16"/>
+                  <circle cx="30" cy="30" r="4.5" fill="none"/>
+                </g>
+              </svg>
+            </div>
+              <div class="game-entry-name">井字棋</div>
+            </div>
+            <div class="game-entry" id="game-mrg-entry">
+              <div class="game-entry-icon mrg"><img src="icon.ico" alt="合成"></div>
+              <div class="game-entry-name">合成</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="game-2048-view" style="display:none;">
+          <div class="game-2048-topbar">
+            <button class="btn btn-outline btn-sm" id="game-2048-back" title="返回上一页"><i class="fa-solid fa-arrow-left"></i> 返回上一页</button>
+            <div class="game-2048-topright">
+              <span class="game-2048-score">得分 <b id="game-2048-score">0</b></span>
+              <button class="btn btn-outline btn-sm" id="game-2048-help" title="玩法说明"><i class="fa-solid fa-circle-question"></i> 说明</button>
+              <button class="btn btn-outline btn-sm" id="game-2048-god" title="上帝模式"><i class="fa-solid fa-wand-magic-sparkles"></i> 上帝模式</button>
+              <button class="btn btn-primary btn-sm" id="game-2048-restart" title="重新开始"><i class="fa-solid fa-rotate-right"></i> 重新开始</button>
+            </div>
+          </div>
+          <div class="game-2048-toolbar" id="game-2048-toolbar" style="display:none;">
+            <button type="button" class="btn btn-outline btn-sm" id="game-2048-tool-cancel">取消</button>
+            <button type="button" class="btn btn-outline btn-sm" id="game-2048-tool-del">删除方块</button>
+            <button type="button" class="btn btn-outline btn-sm" id="game-2048-tool-add">添加方块</button>
+          </div>
+          <div class="game-2048-board" id="game-2048-board"></div>
+          <div class="game-2048-actions" id="game-2048-actions" style="display:none;"></div>
+        </div>
+
+        <div class="card" id="game-ttt-menu-view" style="display:none;">
+          <div class="game-ttt-topbar">
+            <button type="button" class="btn btn-outline btn-sm" id="game-ttt-menu-back" title="返回上一页"><i class="fa-solid fa-arrow-left"></i> 返回上一页</button>
+            <div class="game-ttt-status" id="game-ttt-menu-status">选择难度</div>
+            <div class="game-ttt-topright"></div>
+          </div>
+          <div class="game-ttt-menu">
+            <div class="game-ttt-menu-title">井字棋</div>
+            <div class="game-ttt-menu-desc">玩家执 X、AI 执 O，你先行</div>
+            <button type="button" class="btn btn-primary" id="game-ttt-btn-medium">中等</button>
+            <button type="button" class="btn btn-primary" id="game-ttt-btn-hard">不可能</button>
+            <button type="button" class="btn btn-outline" id="game-ttt-back-bottom">返回上一页</button>
+          </div>
+        </div>
+
+        <div class="card" id="game-ttt-view" style="display:none;">
+          <div class="game-ttt-topbar">
+            <button class="btn btn-outline btn-sm" id="game-ttt-back" title="回到上一页"><i class="fa-solid fa-arrow-left"></i> 回到上一页</button>
+            <div class="game-ttt-status" id="game-ttt-status">你的回合</div>
+            <div class="game-ttt-topright">
+              <button class="btn btn-primary btn-sm" id="game-ttt-restart" title="重新开始"><i class="fa-solid fa-rotate-right"></i> 重新开始</button>
+            </div>
+          </div>
+          <div class="game-ttt-board" id="game-ttt-board"></div>
+        </div>
+
+        <div class="card" id="game-mrg-menu-view" style="display:none;">
+          <div class="game-ttt-topbar">
+            <button type="button" class="btn btn-outline btn-sm" id="game-mrg-menu-back" title="返回上一页"><i class="fa-solid fa-arrow-left"></i> 返回上一页</button>
+            <div class="game-ttt-status" id="game-mrg-menu-status">选择容器形状</div>
+            <div class="game-ttt-topright"></div>
+          </div>
+          <div class="game-mrg-menu">
+            <div class="game-mrg-menu-title">合成</div>
+            <div class="game-mrg-menu-desc">点击或滑动容器任意位置，从顶部落下 1~4 级图标，同级碰撞会合成升级</div>
+            <button type="button" class="btn btn-primary" id="game-mrg-btn-rect">常规</button>
+            <button type="button" class="btn btn-primary" id="game-mrg-btn-circle">圆形</button>
+            <button type="button" class="btn btn-outline" id="game-mrg-back-bottom">返回上一页</button>
+          </div>
+        </div>
+
+        <div class="card" id="game-mrg-view" style="display:none;">
+          <div class="game-ttt-topbar">
+            <button class="btn btn-outline btn-sm" id="game-mrg-back" title="回到上一页"><i class="fa-solid fa-arrow-left"></i> 回到上一页</button>
+            <div class="game-mrg-status" id="game-mrg-status">合成 · 得分 0</div>
+            <div class="game-ttt-topright">
+              <button class="btn btn-primary btn-sm" id="game-mrg-restart" title="重新开始"><i class="fa-solid fa-rotate-right"></i> 重新开始</button>
+            </div>
+          </div>
+          <div class="game-mrg-container" id="game-mrg-container">
+            <canvas id="game-mrg-canvas"></canvas>
+            <div class="game-mrg-line" id="game-mrg-line"></div>
+          </div>
+        </div>
+      </div>
 
       <div class="page" id="page-desktop-clone">
         <div class="rdp-container">
